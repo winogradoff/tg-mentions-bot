@@ -4,6 +4,7 @@ import re
 from dataclasses import dataclass
 from typing import Dict, Set
 
+import psycopg2
 from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
@@ -13,6 +14,25 @@ from aiogram.utils import markdown
 from aiogram.utils.callback_data import CallbackData
 from aiogram.utils.exceptions import MessageNotModified
 from aiogram.utils.text_decorations import markdown_decoration
+
+logging.basicConfig(
+    format=u'%(filename)+13s [ LINE:%(lineno)-4s] %(levelname)-8s [%(asctime)s] %(message)s',
+    level=logging.DEBUG
+)
+
+DATABASE_URL = os.environ['DATABASE_URL']
+
+logging.info("Connection to DB...")
+conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+logging.info("Successful database connection!")
+
+with conn:
+    with conn.cursor() as curs:
+        curs.execute("SELECT version();")
+        record = curs.fetchone()
+        print("You are connected to - ", record, "\n")
+
+conn.close()
 
 
 @dataclass(unsafe_hash=True)
@@ -25,11 +45,6 @@ class StorageKey:
 class StorageValue:
     members: Set[str]
 
-
-logging.basicConfig(
-    format=u'%(filename)+13s [ LINE:%(lineno)-4s] %(levelname)-8s [%(asctime)s] %(message)s',
-    level=logging.DEBUG
-)
 
 bot = Bot(token=os.getenv("TOKEN"))
 dp = Dispatcher(bot=bot, storage=MemoryStorage())

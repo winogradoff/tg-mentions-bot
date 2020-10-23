@@ -39,20 +39,23 @@ with connection:
         logging.info("Database schema creation...")
         cursor.execute(textwrap.dedent(
             """
-                create table if not exists chat (
+                create table if not exists chat
+                (
                     chat_id bigint not null primary key
                 );
                 
-                create table if not exists chat_group (
-                    group_id     bigserial primary key,
-                    group_name   varchar(200) not null,
-                    chat_id      bigint      not null,
+                create table if not exists chat_group
+                (
+                    group_id   bigserial primary key,
+                    group_name varchar(200) not null,
+                    chat_id    bigint       not null,
                     foreign key (chat_id) references chat (chat_id)
                 );
                 
-                create table if not exists member (
+                create table if not exists member
+                (
                     member_id   bigserial primary key,
-                    group_id    bigint      not null,
+                    group_id    bigint       not null,
                     member_name varchar(200) not null,
                     foreign key (group_id) references chat_group (group_id)
                 );
@@ -83,9 +86,9 @@ dp.middleware.setup(LoggingMiddleware())
 
 group_cd = CallbackData('group', 'key', 'action')  # group:<id>:<action>
 
-REGEX_COMMAND_GROUP = re.compile(r'^/(?P<command>[@\w-]+)\s+(?P<group>[\w-]+)$')
-REGEX_COMMAND_GROUP_MESSAGE = re.compile(r'^/(?P<command>[@\w-]+)\s+(?P<group>[\w-]+)(\s+(.|\n)*)*')
-REGEX_COMMAND_GROUP_MEMBERS = re.compile(r'^/(?P<command>[@\w-]+)\s+(?P<group>[\w-]+)(\s+(?P<member>[@\w-]+))+$')
+REGEX_COMMAND_GROUP = re.compile(r'^/([@\w-]+)\s+(?P<group>[\w-]+)$')
+REGEX_COMMAND_GROUP_MESSAGE = re.compile(r'^/([@\w-]+)\s+(?P<group>[\w-]+)(\s+(.|\n)*)*')
+REGEX_COMMAND_GROUP_MEMBERS = re.compile(r'^/([@\w-]+)\s+(?P<group>[\w-]+)(\s+(?P<member>[@\w-]+))+$')
 
 
 def db_get_groups(chat_id: int) -> List[Group]:
@@ -243,6 +246,10 @@ async def handler_add_group(message: types.Message):
             parse_mode=ParseMode.MARKDOWN
         )
     group_name = match.group("group")
+
+    if len(group_name) > 20:
+        return await message.reply('Слишком длинное название группы!')
+
     group = db_get_group(chat_id=message.chat.id, group_name=group_name)
     if group:
         logging.info(f"group: {group}")

@@ -82,9 +82,9 @@ dp.middleware.setup(LoggingMiddleware())
 
 group_cd = CallbackData('group', 'key', 'action')  # group:<id>:<action>
 
-REGEX_COMMAND_GROUP = re.compile(r'^/(?P<command>[\w-]+)\s+(?P<group>[\w-]+)$')
-REGEX_COMMAND_GROUP_MESSAGE = re.compile(r'^/(?P<command>[\w-]+)\s+(?P<group>[\w-]+)(\s+(.|\n)*)*')
-REGEX_COMMAND_GROUP_MEMBERS = re.compile(r'^/(?P<command>[\w-]+)\s+(?P<group>[\w-]+)(\s+(?P<member>[@\w-]+))+$')
+REGEX_COMMAND_GROUP = re.compile(r'^/(?P<command>[\w-@]+)\s+(?P<group>[\w-]+)$')
+REGEX_COMMAND_GROUP_MESSAGE = re.compile(r'^/(?P<command>[\w-@]+)\s+(?P<group>[\w-]+)(\s+(.|\n)*)*')
+REGEX_COMMAND_GROUP_MEMBERS = re.compile(r'^/(?P<command>[\w-@]+)\s+(?P<group>[\w-]+)(\s+(?P<member>[@\w-]+))+$')
 
 
 def db_get_groups(chat_id: int) -> List[Group]:

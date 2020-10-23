@@ -1,8 +1,9 @@
 import logging
 import os
 import re
+import textwrap
 from dataclasses import dataclass
-from typing import Dict, Set
+from typing import List, Optional
 
 import psycopg2
 from aiogram import Bot, Dispatcher, types
@@ -23,27 +24,56 @@ logging.basicConfig(
 DATABASE_URL = os.environ['DATABASE_URL']
 
 logging.info("Connection to DB...")
-conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+# todo: connection pool
+connection = psycopg2.connect(DATABASE_URL, sslmode='require')
 logging.info("Successful database connection!")
 
-with conn:
-    with conn.cursor() as curs:
-        curs.execute("SELECT version();")
-        record = curs.fetchone()
-        print("You are connected to - ", record, "\n")
+with connection:
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT version();")
+        record = cursor.fetchone()
+        logging.info(f"You are connected to - {record}")
 
-conn.close()
+with connection:
+    with connection.cursor() as cursor:
+        logging.info("Database schema creation...")
+        cursor.execute(textwrap.dedent(
+            """
+                create table if not exists chat (
+                    chat_id integer not null primary key
+                );
+                
+                create table if not exists chat_group (
+                    group_id   serial primary key,
+                    group_name varchar(200) not null,
+                    chat_id    integer      not null,
+                    foreign key (chat_id) references chat (chat_id)
+                );
+                
+                create table if not exists member (
+                    member_id   serial primary key,
+                    group_id    integer      not null,
+                    member_name varchar(200) not null,
+                    foreign key (group_id) references chat_group (group_id)
+                );
+                
+                create unique index if not exists idx_chat_group on chat_group (chat_id, group_name);
+                create unique index if not exists idx_member on member (group_id);
+            """
+        ))
+        logging.info("Database schema was created successfully!")
 
 
-@dataclass(unsafe_hash=True)
-class StorageKey:
-    chat_id: str
+@dataclass
+class Group:
+    group_id: int
     group_name: str
 
 
 @dataclass
-class StorageValue:
-    members: Set[str]
+class Member:
+    member_id: int
+    member_name: str
 
 
 bot = Bot(token=os.getenv("TOKEN"))
@@ -51,13 +81,97 @@ dp = Dispatcher(bot=bot, storage=MemoryStorage())
 dp.middleware.setup(LoggingMiddleware())
 
 group_cd = CallbackData('group', 'key', 'action')  # group:<id>:<action>
-STORAGE: Dict[StorageKey, StorageValue] = dict()
 
 REGEX_COMMAND_GROUP = re.compile(r'^/(?P<command>[\w-]+)\s+(?P<group>[\w-]+)$')
 REGEX_COMMAND_GROUP_MEMBER = re.compile(r'^/(?P<command>[\w-]+)\s+(?P<group>[\w-]+)\s+(?P<member>[@\w-]+)$')
 
 
+def db_get_groups(chat_id: int) -> List[Group]:
+    with connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "select group_id, group_name"
+                " from chat_group"
+                " where chat_id = %s",
+                (chat_id,)
+            )
+            return [Group(group_id=x[0], group_name=x[1]) for x in cursor.fetchall()]
+
+
+def db_get_group(chat_id: int, group_name: str) -> Optional[Group]:
+    with connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "select group_id, group_name"
+                " from chat_group"
+                " where chat_id = %s and group_name = %s",
+                (chat_id, group_name,)
+            )
+            row = cursor.fetchone()
+            if not row:
+                return None
+            return Group(group_id=row[0], group_name=row[1])
+
+
+def db_get_members(group_id: int) -> List[Member]:
+    with connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "select member_id, member_name"
+                " from member"
+                " where group_id = %s",
+                (group_id,)
+            )
+            return [Member(member_id=x[0], member_name=x[1]) for x in cursor.fetchall()]
+
+
+def db_insert_chat(chat_id: int):
+    with connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "insert into chat (chat_id)"
+                " values (%s) on conflict do nothing",
+                (chat_id,)
+            )
+
+
+def db_insert_group(chat_id: int, group_name: str):
+    with connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "insert into chat_group (chat_id, group_name)"
+                " values (%s, %s) on conflict do nothing",
+                (chat_id, group_name,)
+            )
+
+
+def db_insert_member(group_id: int, member_name: str):
+    with connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "insert into member (group_id, member_name)"
+                " values (%s, %s) on conflict do nothing",
+                (group_id, member_name,)
+            )
+
+
+def db_delete_group(group_id: int):
+    with connection:
+        with connection.cursor() as cursor:
+            cursor.execute("delete from chat_group where group_id = %s", (group_id,))
+
+
+def db_delete_member(group_id: int, member_name: str):
+    with connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "delete from member where group_id = %s and member_name = %s",
+                (group_id, member_name,)
+            )
+
+
 async def shutdown(dispatcher: Dispatcher):
+    connection.close()
     await dispatcher.storage.close()
     await dispatcher.storage.wait_closed()
 
@@ -90,13 +204,14 @@ async def handler_help(message: types.Message):
 
 @dp.message_handler(commands=['list_groups'])
 async def handler_list_groups(message: types.Message):
-    groups = sorted([x.group_name for x in STORAGE.keys() if x.chat_id == message.chat.id])
-    groups = [f"- {x}" for x in groups]
+    groups = db_get_groups(chat_id=message.chat.id)
+    groups = sorted([x.group_name for x in groups])
+    logging.info(f"groups: {groups}")
     await message.reply(
         markdown.text(
             markdown_decoration.bold("Все группы:"),
             markdown_decoration.code(
-                "\n".join(groups)
+                "\n".join([f"- {x}" for x in groups])
                 if len(groups) != 0
                 else "нет ни одной группы"
             ),
@@ -118,13 +233,17 @@ async def handler_add_group(message: types.Message):
             ),
             parse_mode=ParseMode.MARKDOWN
         )
-    group_key = match.group("group")
-    key = StorageKey(chat_id=message.chat.id, group_name=group_key)
-    if key in STORAGE:
+    group_name = match.group("group")
+    group = db_get_group(chat_id=message.chat.id, group_name=group_name)
+    if group:
+        logging.info(f"group: {group}")
         return await message.reply('Такая группа уже существует!')
-    STORAGE[key] = StorageValue(members=set())
+
+    db_insert_chat(chat_id=message.chat.id)
+    db_insert_group(chat_id=message.chat.id, group_name=group_name)
+
     await message.reply(
-        markdown.text("Группа", markdown_decoration.code(key.group_name), "добавлена!"),
+        markdown.text("Группа", markdown_decoration.code(group_name), "добавлена!"),
         parse_mode=ParseMode.MARKDOWN
     )
 
@@ -141,16 +260,27 @@ async def handler_remove_group(message: types.Message):
             ),
             parse_mode=ParseMode.MARKDOWN
         )
-    group_key = match.group("group")
-    key = StorageKey(chat_id=message.chat.id, group_name=group_key)
-    if key not in STORAGE:
-        await message.reply('Группа не найдена!')
-    else:
-        del STORAGE[key]
-        await message.reply(
-            markdown.text("Группа", markdown_decoration.bold(key.group_name), "удалена!"),
-            parse_mode=ParseMode.MARKDOWN
-        )
+    group_name = match.group("group")
+    group = db_get_group(chat_id=message.chat.id, group_name=group_name)
+    if not group:
+        return await message.reply('Группа не найдена!')
+    logging.info(f"group: {group}")
+
+    members = db_get_members(group.group_id)
+    if len(members) != 0:
+        logging.info(f"members: {members}")
+        return await message.reply('Группу нельзя удалить, в ней есть пользователи!')
+
+    try:
+        db_delete_group(group_id=group.group_id)
+    except (Exception, psycopg2.Error) as error:
+        logging.error("Error for delete operation", error)
+        return await message.reply('Возникла ошибка при удалении группы!')
+
+    await message.reply(
+        markdown.text("Группа", markdown_decoration.bold(group_name), "удалена!"),
+        parse_mode=ParseMode.MARKDOWN
+    )
 
 
 @dp.message_handler(commands=['list_members'])
@@ -165,19 +295,23 @@ async def handler_list_members(message: types.Message):
             ),
             parse_mode=ParseMode.MARKDOWN
         )
-    group_key = match.group("group")
-    key = StorageKey(chat_id=message.chat.id, group_name=group_key)
-    if key not in STORAGE:
-        await message.reply('Группа не найдена!')
-    members = [f"- {x}" for x in sorted(STORAGE[key].members)]
+    group_name = match.group("group")
+    group = db_get_group(chat_id=message.chat.id, group_name=group_name)
+    if not group:
+        return await message.reply('Группа не найдена!')
+
+    members = db_get_members(group_id=group.group_id)
+    members = sorted([x.member_name for x in members])
+    logging.info(f"members: {members}")
+
     await message.reply(
         markdown.text(
             markdown.text(
                 markdown_decoration.bold("Участники группы"),
-                markdown_decoration.code(group_key)
+                markdown_decoration.code(group_name)
             ),
             markdown_decoration.code(
-                "\n".join(members)
+                "\n".join([f"- {x}" for x in members])
                 if len(members) != 0
                 else "нет ни одного участника"
             ),
@@ -199,11 +333,12 @@ async def handler_add_member(message: types.Message):
             ),
             parse_mode=ParseMode.MARKDOWN
         )
-    group_key = match.group('group')
-    key = StorageKey(chat_id=message.chat.id, group_name=group_key)
-    if key not in STORAGE:
-        await message.reply('Группа не найдена!')
-    members = STORAGE[key].members
+    group_name = match.group('group')
+    group = db_get_group(chat_id=message.chat.id, group_name=group_name)
+    if not group:
+        return await message.reply('Группа не найдена!')
+    logging.info(f"group: {group}")
+
     mentions = [
         x.get_text(message.text)
         for x in message.entities
@@ -219,11 +354,13 @@ async def handler_add_member(message: types.Message):
         return await message.reply('Пользователь не найден!')
     if len(all_members) != 1:
         return await message.reply('Пользователь должен быть один!')
-    members.update(all_members)
+
+    db_insert_member(group_id=group.group_id, member_name=all_members[0])
+
     await message.reply(
         markdown.text(
             "Пользователь добавлен в группу",
-            markdown_decoration.code(group_key)
+            markdown_decoration.code(group_name)
         ),
         parse_mode=ParseMode.MARKDOWN
     )
@@ -241,10 +378,12 @@ async def handler_remove_member(message: types.Message):
             ),
             parse_mode=ParseMode.MARKDOWN
         )
-    group_key = match.group('group')
-    key = StorageKey(chat_id=message.chat.id, group_name=group_key)
-    if key not in STORAGE:
-        await message.reply('Группа не найдена!')
+    group_name = match.group('group')
+    group = db_get_group(chat_id=message.chat.id, group_name=group_name)
+    if not group:
+        return await message.reply('Группа не найдена!')
+    logging.info(f"group: {group}")
+
     mentions = [
         x.get_text(message.text)
         for x in message.entities
@@ -260,9 +399,15 @@ async def handler_remove_member(message: types.Message):
         return await message.reply('Пользователь не найден!')
     if len(all_members) != 1:
         return await message.reply('Пользователь должен быть один!')
-    STORAGE[key].members.remove(all_members.pop())
+
+    try:
+        db_delete_member(group_id=group.group_id, member_name=all_members[0])
+    except (Exception, psycopg2.Error) as error:
+        logging.error("Error for delete operation", error)
+        return await message.reply('Возникла ошибка при удалении пользователя!')
+
     await message.reply(
-        markdown.text("Пользователь удалён из группы", markdown_decoration.code(group_key)),
+        markdown.text("Пользователь удалён из группы", markdown_decoration.code(group_name)),
         parse_mode=ParseMode.MARKDOWN
     )
 
@@ -279,14 +424,17 @@ async def handler_call(message: types.Message):
             ),
             parse_mode=ParseMode.MARKDOWN
         )
-    group_key = match.group("group")
-    key = StorageKey(chat_id=message.chat.id, group_name=group_key)
-    if key not in STORAGE:
+    group_name = match.group("group")
+    group = db_get_group(chat_id=message.chat.id, group_name=group_name)
+    if not group:
         return await message.reply('Группа не найдена!')
-    members = STORAGE[key].members
-    if not members:
+    logging.info(f"group: {group}")
+
+    members = db_get_members(group_id=group.group_id)
+    if len(members) == 0:
         return await message.reply('Группа пользователей пуста!')
-    members = [markdown.escape_md(x) for x in members]
+
+    members = [markdown.escape_md(x.member_name) for x in members]
     text = markdown.text(
         " ".join(members) if len(members) != 0 else "нет ни одного участника",
         sep='\n'

@@ -83,7 +83,8 @@ dp.middleware.setup(LoggingMiddleware())
 group_cd = CallbackData('group', 'key', 'action')  # group:<id>:<action>
 
 REGEX_COMMAND_GROUP = re.compile(r'^/(?P<command>[\w-]+)\s+(?P<group>[\w-]+)$')
-REGEX_COMMAND_GROUP_MEMBER = re.compile(r'^/(?P<command>[\w-]+)\s+(?P<group>[\w-]+)(\s+(?P<member>[@\w-]+))+$')
+REGEX_COMMAND_GROUP_MESSAGE = re.compile(r'^/(?P<command>[\w-]+)\s+(?P<group>[\w-]+)(\s+(.|\n)*)*')
+REGEX_COMMAND_GROUP_MEMBERS = re.compile(r'^/(?P<command>[\w-]+)\s+(?P<group>[\w-]+)(\s+(?P<member>[@\w-]+))+$')
 
 
 def db_get_groups(chat_id: int) -> List[Group]:
@@ -267,7 +268,10 @@ async def handler_remove_group(message: types.Message):
     group_name = match.group("group")
     group = db_get_group(chat_id=message.chat.id, group_name=group_name)
     if not group:
-        return await message.reply('Группа не найдена!')
+        return await message.reply(
+            markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
+            parse_mode=ParseMode.MARKDOWN
+        )
     logging.info(f"group: {group}")
 
     members = db_get_members(group.group_id)
@@ -302,7 +306,10 @@ async def handler_list_members(message: types.Message):
     group_name = match.group("group")
     group = db_get_group(chat_id=message.chat.id, group_name=group_name)
     if not group:
-        return await message.reply('Группа не найдена!')
+        return await message.reply(
+            markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
+            parse_mode=ParseMode.MARKDOWN
+        )
 
     members = db_get_members(group_id=group.group_id)
     members = sorted([x.member_name for x in members])
@@ -329,7 +336,7 @@ async def handler_list_members(message: types.Message):
 
 @dp.message_handler(commands=['add_members'])
 async def handler_add_members(message: types.Message):
-    match = REGEX_COMMAND_GROUP_MEMBER.search(message.text)
+    match = REGEX_COMMAND_GROUP_MEMBERS.search(message.text)
     if not match:
         return await message.reply(
             markdown.text(
@@ -342,7 +349,10 @@ async def handler_add_members(message: types.Message):
     group_name = match.group('group')
     group = db_get_group(chat_id=message.chat.id, group_name=group_name)
     if not group:
-        return await message.reply('Группа не найдена!')
+        return await message.reply(
+            markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
+            parse_mode=ParseMode.MARKDOWN
+        )
     logging.info(f"group: {group}")
 
     mentions = [
@@ -379,7 +389,7 @@ async def handler_add_members(message: types.Message):
 
 @dp.message_handler(commands=['remove_members'])
 async def handler_remove_members(message: types.Message):
-    match = REGEX_COMMAND_GROUP_MEMBER.search(message.text)
+    match = REGEX_COMMAND_GROUP_MEMBERS.search(message.text)
     if not match:
         return await message.reply(
             markdown.text(
@@ -392,7 +402,10 @@ async def handler_remove_members(message: types.Message):
     group_name = match.group('group')
     group = db_get_group(chat_id=message.chat.id, group_name=group_name)
     if not group:
-        return await message.reply('Группа не найдена!')
+        return await message.reply(
+            markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
+            parse_mode=ParseMode.MARKDOWN
+        )
     logging.info(f"group: {group}")
 
     mentions = [
@@ -434,7 +447,7 @@ async def handler_remove_members(message: types.Message):
 
 @dp.message_handler(commands=['call'])
 async def handler_call(message: types.Message):
-    match = REGEX_COMMAND_GROUP.search(message.text)
+    match = REGEX_COMMAND_GROUP_MESSAGE.search(message.text)
     if not match:
         return await message.reply(
             markdown.text(
@@ -447,7 +460,10 @@ async def handler_call(message: types.Message):
     group_name = match.group("group")
     group = db_get_group(chat_id=message.chat.id, group_name=group_name)
     if not group:
-        return await message.reply('Группа не найдена!')
+        return await message.reply(
+            markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
+            parse_mode=ParseMode.MARKDOWN
+        )
     logging.info(f"group: {group}")
 
     members = db_get_members(group_id=group.group_id)

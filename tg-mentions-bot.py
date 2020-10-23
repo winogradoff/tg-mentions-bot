@@ -40,19 +40,19 @@ with connection:
         cursor.execute(textwrap.dedent(
             """
                 create table if not exists chat (
-                    chat_id integer not null primary key
+                    chat_id bigint not null primary key
                 );
                 
                 create table if not exists chat_group (
-                    group_id   serial primary key,
-                    group_name varchar(200) not null,
-                    chat_id    integer      not null,
+                    group_id     bigserial primary key,
+                    group_name   varchar(200) not null,
+                    chat_id      bigint      not null,
                     foreign key (chat_id) references chat (chat_id)
                 );
                 
                 create table if not exists member (
-                    member_id   serial primary key,
-                    group_id    integer      not null,
+                    member_id   bigserial primary key,
+                    group_id    bigint      not null,
                     member_name varchar(200) not null,
                     foreign key (group_id) references chat_group (group_id)
                 );
@@ -72,8 +72,9 @@ class Group:
 
 @dataclass
 class Member:
-    member_id: int
     member_name: str
+    member_id: Optional[int] = None
+    user_id: Optional[int] = None
 
 
 bot = Bot(token=os.getenv("TOKEN"))
@@ -118,12 +119,15 @@ def db_get_members(group_id: int) -> List[Member]:
     with connection:
         with connection.cursor() as cursor:
             cursor.execute(
-                "select member_id, member_name"
+                "select member_id, member_name, user_id"
                 " from member"
                 " where group_id = %s",
                 (group_id,)
             )
-            return [Member(member_id=x[0], member_name=x[1]) for x in cursor.fetchall()]
+            return [
+                Member(member_id=x[0], member_name=x[1], user_id=x[2])
+                for x in cursor.fetchall()
+            ]
 
 
 def db_insert_chat(chat_id: int):
@@ -148,14 +152,14 @@ def db_insert_group(chat_id: int, group_name: str):
             )
 
 
-def db_insert_member(group_id: int, member_name: str):
-    logging.info(f"DB: inserting member: group_id=[{group_id}], member_name=[{member_name}]")
+def db_insert_member(group_id: int, member: Member):
+    logging.info(f"DB: inserting member: group_id=[$group_id], member=[{member}]")
     with connection:
         with connection.cursor() as cursor:
             cursor.execute(
-                "insert into member (group_id, member_name)"
-                " values (%s, %s) on conflict do nothing",
-                (group_id, member_name,)
+                "insert into member (group_id, member_name, user_id)"
+                " values (%s, %s, %s) on conflict do nothing",
+                (group_id, member.member_name, member.user_id,)
             )
 
 
@@ -312,7 +316,7 @@ async def handler_list_members(message: types.Message):
         )
 
     members = db_get_members(group_id=group.group_id)
-    members = sorted([x.member_name for x in members])
+    members = sorted(convert_members_to_names(members))
     logging.info(f"members: {members}")
 
     if len(members) == 0:
@@ -356,23 +360,29 @@ async def handler_add_members(message: types.Message):
     logging.info(f"group: {group}")
 
     mentions = [
-        x.get_text(message.text)
+        Member(member_name=x.get_text(message.text))
         for x in message.entities
         if x.type == MessageEntityType.MENTION
     ]
+
     text_mentions = [
-        markdown_decoration.link(value=x.user.full_name, link=x.user.url)
+        Member(
+            member_name=x.user.full_name,
+            user_id=x.user.id
+        )
         for x in message.entities
         if x.type == MessageEntityType.TEXT_MENTION
     ]
+
     all_members = mentions + text_mentions
     logging.info(f"members: {all_members}")
 
     if len(all_members) < 1:
         return await message.reply('Нужно указать хотя бы одного пользователя!')
 
-    for member in all_members:
-        db_insert_member(group_id=group.group_id, member_name=member)
+    with connection:
+        for member in all_members:
+            db_insert_member(group_id=group.group_id, member=member)
 
     await message.reply(
         markdown.text(
@@ -380,7 +390,9 @@ async def handler_add_members(message: types.Message):
                 "Пользователи добавленные в группу",
                 markdown_decoration.code(group_name),
             ),
-            markdown_decoration.code("\n".join([f"- {x}" for x in all_members])),
+            markdown_decoration.code("\n".join([
+                f"- {x}" for x in convert_members_to_names(all_members)
+            ])),
             sep='\n'
         ),
         parse_mode=ParseMode.MARKDOWN
@@ -470,15 +482,32 @@ async def handler_call(message: types.Message):
     if len(members) == 0:
         return await message.reply('Группа пользователей пуста!')
 
-    members = [markdown.escape_md(x.member_name) for x in members]
-    text = markdown.text(
-        " ".join(members) if len(members) != 0 else "нет ни одного участника",
-        sep='\n'
-    )
+    mentions = convert_members_to_mentions(members)
+
+    text = " ".join(mentions)
     if message.reply_to_message:
         await message.reply_to_message.reply(text, parse_mode=ParseMode.MARKDOWN)
     else:
         await message.reply(text, parse_mode=ParseMode.MARKDOWN)
+
+
+def convert_members_to_names(members: List[Member]) -> List[str]:
+    return [x.member_name for x in members]
+
+
+def convert_members_to_mentions(members: List[Member]) -> List[str]:
+    result = []
+    for member in members:
+        if member.user_id is not None:
+            result.append(
+                markdown_decoration.link(
+                    value=member.member_name,
+                    link=f"tg://user?id={member.user_id}"
+                )
+            )
+        else:
+            result.append(markdown.escape_md(member.member_name))
+    return result
 
 
 if __name__ == '__main__':

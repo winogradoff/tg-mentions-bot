@@ -58,7 +58,7 @@ with connection:
                 );
                 
                 create unique index if not exists idx_chat_group on chat_group (chat_id, group_name);
-                create unique index if not exists idx_member on member (group_id);
+                create unique index if not exists idx_member on member (group_id, member_name);
             """
         ))
         logging.info("Database schema was created successfully!")
@@ -83,7 +83,7 @@ dp.middleware.setup(LoggingMiddleware())
 group_cd = CallbackData('group', 'key', 'action')  # group:<id>:<action>
 
 REGEX_COMMAND_GROUP = re.compile(r'^/(?P<command>[\w-]+)\s+(?P<group>[\w-]+)$')
-REGEX_COMMAND_GROUP_MEMBER = re.compile(r'^/(?P<command>[\w-]+)\s+(?P<group>[\w-]+)\s+(?P<member>[@\w-]+)$')
+REGEX_COMMAND_GROUP_MEMBER = re.compile(r'^/(?P<command>[\w-]+)\s+(?P<group>[\w-]+)(\s+(?P<member>[@\w-]+))+$')
 
 
 def db_get_groups(chat_id: int) -> List[Group]:
@@ -126,6 +126,7 @@ def db_get_members(group_id: int) -> List[Member]:
 
 
 def db_insert_chat(chat_id: int):
+    logging.info(f"DB: inserting chat: chat_id=[{chat_id}]")
     with connection:
         with connection.cursor() as cursor:
             cursor.execute(
@@ -136,6 +137,7 @@ def db_insert_chat(chat_id: int):
 
 
 def db_insert_group(chat_id: int, group_name: str):
+    logging.info(f"DB: inserting group: chat_id=[{chat_id}], group_name=[{group_name}]")
     with connection:
         with connection.cursor() as cursor:
             cursor.execute(
@@ -146,6 +148,7 @@ def db_insert_group(chat_id: int, group_name: str):
 
 
 def db_insert_member(group_id: int, member_name: str):
+    logging.info(f"DB: inserting member: group_id=[{group_id}], member_name=[{member_name}]")
     with connection:
         with connection.cursor() as cursor:
             cursor.execute(
@@ -156,12 +159,14 @@ def db_insert_member(group_id: int, member_name: str):
 
 
 def db_delete_group(group_id: int):
+    logging.info(f"DB: deleting group: group_id=[{group_id}]")
     with connection:
         with connection.cursor() as cursor:
             cursor.execute("delete from chat_group where group_id = %s", (group_id,))
 
 
 def db_delete_member(group_id: int, member_name: str):
+    logging.info(f"DB: deleting member: group_id=[{group_id}], member_name=[{member_name}]")
     with connection:
         with connection.cursor() as cursor:
             cursor.execute(
@@ -191,10 +196,10 @@ async def handler_help(message: types.Message):
             markdown.escape_md('/list_groups — просмотр списка групп'),
             markdown.escape_md('/add_group — добавление группы'),
             markdown.escape_md('/remove_group — удаление группы'),
-            markdown.escape_md('/list_members — список участников группы'),
-            markdown.escape_md('/add_member добавление участника в группу'),
-            markdown.escape_md('/remove_member — удаление участника из группы'),
-            markdown.escape_md('/call — позвать участников группы'),
+            markdown.escape_md('/list_members — список пользователей в группе'),
+            markdown.escape_md('/add_members — добавление пользователей в группу'),
+            markdown.escape_md('/remove_members — удаление пользователей из группы'),
+            markdown.escape_md('/call — позвать пользователей группы'),
             markdown.escape_md('/help — справка по всем операциям'),
             sep='\n'
         ),
@@ -207,18 +212,17 @@ async def handler_list_groups(message: types.Message):
     groups = db_get_groups(chat_id=message.chat.id)
     groups = sorted([x.group_name for x in groups])
     logging.info(f"groups: {groups}")
-    await message.reply(
-        markdown.text(
-            markdown_decoration.bold("Все группы:"),
-            markdown_decoration.code(
-                "\n".join([f"- {x}" for x in groups])
-                if len(groups) != 0
-                else "нет ни одной группы"
-            ),
+
+    if len(groups) == 0:
+        text = "Нет ни одной группы."
+    else:
+        text = markdown.text(
+            markdown_decoration.bold("Вот такие группы существуют:"),
+            markdown_decoration.code("\n".join([f"- {x}" for x in groups])),
             sep='\n'
-        ),
-        parse_mode=ParseMode.MARKDOWN
-    )
+        )
+
+    await message.reply(text, parse_mode=ParseMode.MARKDOWN)
 
 
 @dp.message_handler(commands=['add_group'])
@@ -304,31 +308,33 @@ async def handler_list_members(message: types.Message):
     members = sorted([x.member_name for x in members])
     logging.info(f"members: {members}")
 
-    await message.reply(
-        markdown.text(
+    if len(members) == 0:
+        text = markdown.text(
+            "В группе",
+            markdown_decoration.code(group_name),
+            "нет ни одного пользователя!",
+        )
+    else:
+        text = markdown.text(
             markdown.text(
                 markdown_decoration.bold("Участники группы"),
                 markdown_decoration.code(group_name)
             ),
-            markdown_decoration.code(
-                "\n".join([f"- {x}" for x in members])
-                if len(members) != 0
-                else "нет ни одного участника"
-            ),
+            markdown_decoration.code("\n".join([f"- {x}" for x in members])),
             sep='\n'
-        ),
-        parse_mode=ParseMode.MARKDOWN
-    )
+        )
+
+    await message.reply(text, parse_mode=ParseMode.MARKDOWN)
 
 
-@dp.message_handler(commands=['add_member'])
-async def handler_add_member(message: types.Message):
+@dp.message_handler(commands=['add_members'])
+async def handler_add_members(message: types.Message):
     match = REGEX_COMMAND_GROUP_MEMBER.search(message.text)
     if not match:
         return await message.reply(
             markdown.text(
                 markdown_decoration.bold("Пример вызова:"),
-                markdown_decoration.code("/add_member group username"),
+                markdown_decoration.code("/add_members group username1 username2"),
                 sep='\n'
             ),
             parse_mode=ParseMode.MARKDOWN
@@ -350,30 +356,35 @@ async def handler_add_member(message: types.Message):
         if x.type == MessageEntityType.TEXT_MENTION
     ]
     all_members = mentions + text_mentions
-    if not all_members:
-        return await message.reply('Пользователь не найден!')
-    if len(all_members) != 1:
-        return await message.reply('Пользователь должен быть один!')
+    logging.info(f"members: {all_members}")
 
-    db_insert_member(group_id=group.group_id, member_name=all_members[0])
+    if len(all_members) < 1:
+        return await message.reply('Нужно указать хотя бы одного пользователя!')
+
+    for member in all_members:
+        db_insert_member(group_id=group.group_id, member_name=member)
 
     await message.reply(
         markdown.text(
-            "Пользователь добавлен в группу",
-            markdown_decoration.code(group_name)
+            markdown.text(
+                "Пользователи добавленные в группу",
+                markdown_decoration.code(group_name),
+            ),
+            markdown_decoration.code("\n".join([f"- {x}" for x in all_members])),
+            sep='\n'
         ),
         parse_mode=ParseMode.MARKDOWN
     )
 
 
-@dp.message_handler(commands=['remove_member'])
-async def handler_remove_member(message: types.Message):
+@dp.message_handler(commands=['remove_members'])
+async def handler_remove_members(message: types.Message):
     match = REGEX_COMMAND_GROUP_MEMBER.search(message.text)
     if not match:
         return await message.reply(
             markdown.text(
                 markdown_decoration.bold("Пример вызова:"),
-                markdown_decoration.code("/remove_member group username"),
+                markdown_decoration.code("/remove_members group username1 username2"),
                 sep='\n'
             ),
             parse_mode=ParseMode.MARKDOWN
@@ -395,19 +406,28 @@ async def handler_remove_member(message: types.Message):
         if x.type == MessageEntityType.TEXT_MENTION
     ]
     all_members = mentions + text_mentions
-    if not all_members:
-        return await message.reply('Пользователь не найден!')
-    if len(all_members) != 1:
-        return await message.reply('Пользователь должен быть один!')
+    logging.info(f"members: {all_members}")
 
-    try:
-        db_delete_member(group_id=group.group_id, member_name=all_members[0])
-    except (Exception, psycopg2.Error) as error:
-        logging.error("Error for delete operation", error)
-        return await message.reply('Возникла ошибка при удалении пользователя!')
+    if len(all_members) < 1:
+        return await message.reply('Нужно указать хотя бы одного пользователя!')
+
+    with connection:
+        for member in all_members:
+            try:
+                db_delete_member(group_id=group.group_id, member_name=member)
+            except (Exception, psycopg2.Error) as error:
+                logging.error("Error for delete operation", error)
+                return await message.reply('Возникла ошибка при удалении пользователей!')
 
     await message.reply(
-        markdown.text("Пользователь удалён из группы", markdown_decoration.code(group_name)),
+        markdown.text(
+            markdown.text(
+                "Пользователи удалённые из группы",
+                markdown_decoration.code(group_name)
+            ),
+            markdown_decoration.code("\n".join([f"- {x}" for x in all_members])),
+            sep='\n'
+        ),
         parse_mode=ParseMode.MARKDOWN
     )
 

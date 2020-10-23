@@ -57,6 +57,7 @@ with connection:
                     member_id   bigserial primary key,
                     group_id    bigint       not null,
                     member_name varchar(200) not null,
+                    user_id     bigint           null,
                     foreign key (group_id) references chat_group (group_id)
                 );
                 

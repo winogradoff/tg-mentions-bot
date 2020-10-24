@@ -87,9 +87,13 @@ dp.middleware.setup(LoggingMiddleware())
 
 group_cd = CallbackData('group', 'key', 'action')  # group:<id>:<action>
 
-REGEX_COMMAND_GROUP = re.compile(r'^/([@\w-]+)\s+(?P<group>[\w-]+)$')
-REGEX_COMMAND_GROUP_MESSAGE = re.compile(r'^/([@\w-]+)\s+(?P<group>[\w-]+)(\s+(.|\n)*)*')
-REGEX_COMMAND_GROUP_MEMBERS = re.compile(r'^/([@\w-]+)\s+(?P<group>[\w-]+)(\s+(?P<member>[@\w-]+))+$')
+REGEX_CMD = r"[@a-zA-Z0-9-_]+"
+REGEX_GROUP = r"[a-zA-Z0-9а-яА-Я-_]+"
+REGEX_MEMBER = r"[@\w-]+"
+
+REGEX_CMD_GROUP = re.compile(fr"^/({REGEX_CMD})\s+(?P<group>{REGEX_GROUP})$")
+REGEX_CMD_GROUP_MESSAGE = re.compile(fr'^/({REGEX_CMD})\s+(?P<group>{REGEX_GROUP})(\s+(.|\n)*)*')
+REGEX_CMD_GROUP_MEMBERS = re.compile(fr'^/({REGEX_CMD})\s+(?P<group>{REGEX_GROUP})(\s+(?P<member>{REGEX_MEMBER}))+$')
 
 
 def db_get_groups(chat_id: int) -> List[Group]:
@@ -157,7 +161,7 @@ def db_insert_group(chat_id: int, group_name: str):
 
 
 def db_insert_member(group_id: int, member: Member):
-    logging.info(f"DB: inserting member: group_id=[$group_id], member=[{member}]")
+    logging.info(f"DB: inserting member: group_id=[{group_id}], member=[{member}]")
     with connection:
         with connection.cursor() as cursor:
             cursor.execute(
@@ -236,12 +240,14 @@ async def handler_list_groups(message: types.Message):
 
 @dp.message_handler(commands=['add_group'])
 async def handler_add_group(message: types.Message):
-    match = REGEX_COMMAND_GROUP.search(message.text)
+    match = REGEX_CMD_GROUP.search(message.text)
     if not match:
         return await message.reply(
             markdown.text(
                 markdown_decoration.bold("Пример вызова:"),
                 markdown_decoration.code("/add_group group"),
+                " ",
+                markdown.text("group:", markdown_decoration.code(REGEX_GROUP)),
                 sep='\n'
             ),
             parse_mode=ParseMode.MARKDOWN
@@ -267,12 +273,14 @@ async def handler_add_group(message: types.Message):
 
 @dp.message_handler(commands=['remove_group'])
 async def handler_remove_group(message: types.Message):
-    match = REGEX_COMMAND_GROUP.search(message.text)
+    match = REGEX_CMD_GROUP.search(message.text)
     if not match:
         return await message.reply(
             markdown.text(
                 markdown_decoration.bold("Пример вызова:"),
                 markdown_decoration.code("/remove_group group"),
+                " ",
+                markdown.text("group:", markdown_decoration.code(REGEX_GROUP)),
                 sep='\n'
             ),
             parse_mode=ParseMode.MARKDOWN
@@ -305,12 +313,14 @@ async def handler_remove_group(message: types.Message):
 
 @dp.message_handler(commands=['list_members'])
 async def handler_list_members(message: types.Message):
-    match = REGEX_COMMAND_GROUP.search(message.text)
+    match = REGEX_CMD_GROUP.search(message.text)
     if not match:
         return await message.reply(
             markdown.text(
                 markdown_decoration.bold("Пример вызова:"),
                 markdown_decoration.code("/list_members group"),
+                " ",
+                markdown.text("group:", markdown_decoration.code(REGEX_GROUP)),
                 sep='\n'
             ),
             parse_mode=ParseMode.MARKDOWN
@@ -346,14 +356,17 @@ async def handler_list_members(message: types.Message):
     await message.reply(text, parse_mode=ParseMode.MARKDOWN)
 
 
-@dp.message_handler(commands=['add_members'])
+@dp.message_handler(commands=['add_members', 'add_member'])
 async def handler_add_members(message: types.Message):
-    match = REGEX_COMMAND_GROUP_MEMBERS.search(message.text)
+    match = REGEX_CMD_GROUP_MEMBERS.search(message.text)
     if not match:
         return await message.reply(
             markdown.text(
                 markdown_decoration.bold("Пример вызова:"),
                 markdown_decoration.code("/add_members group username1 username2"),
+                " ",
+                markdown.text("group:", markdown_decoration.code(REGEX_GROUP)),
+                markdown.text("username:", markdown_decoration.code(REGEX_MEMBER)),
                 sep='\n'
             ),
             parse_mode=ParseMode.MARKDOWN
@@ -407,14 +420,17 @@ async def handler_add_members(message: types.Message):
     )
 
 
-@dp.message_handler(commands=['remove_members'])
+@dp.message_handler(commands=['remove_members', 'remove_member'])
 async def handler_remove_members(message: types.Message):
-    match = REGEX_COMMAND_GROUP_MEMBERS.search(message.text)
+    match = REGEX_CMD_GROUP_MEMBERS.search(message.text)
     if not match:
         return await message.reply(
             markdown.text(
                 markdown_decoration.bold("Пример вызова:"),
                 markdown_decoration.code("/remove_members group username1 username2"),
+                " ",
+                markdown.text("group:", markdown_decoration.code(REGEX_GROUP)),
+                markdown.text("username:", markdown_decoration.code(REGEX_MEMBER)),
                 sep='\n'
             ),
             parse_mode=ParseMode.MARKDOWN
@@ -467,12 +483,14 @@ async def handler_remove_members(message: types.Message):
 
 @dp.message_handler(commands=['call'])
 async def handler_call(message: types.Message):
-    match = REGEX_COMMAND_GROUP_MESSAGE.search(message.text)
+    match = REGEX_CMD_GROUP_MESSAGE.search(message.text)
     if not match:
         return await message.reply(
             markdown.text(
                 markdown_decoration.bold("Пример вызова:"),
                 markdown_decoration.code("/call group"),
+                " ",
+                markdown.text("group:", markdown_decoration.code(REGEX_GROUP)),
                 sep='\n'
             ),
             parse_mode=ParseMode.MARKDOWN

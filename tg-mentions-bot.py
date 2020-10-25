@@ -26,7 +26,7 @@ DATABASE_URL = os.environ['DATABASE_URL']
 
 # todo: connection pool
 logging.info("Connection to DB...")
-if os.environ['DEBUG'] is not None:
+if os.getenv('DEBUG') is not None:
     # local db without ssl
     connection = psycopg2.connect(DATABASE_URL)
 else:

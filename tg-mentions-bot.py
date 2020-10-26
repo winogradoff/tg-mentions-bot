@@ -118,6 +118,8 @@ REGEX_GROUP = r"(?:[a-zA-Z0-9]|[а-яА-ЯёЁ]|[-_])+"
 REGEX_MEMBER = r"(?:[@\w]|[-])+"
 
 REGEX_CMD_GROUP = re.compile(fr"^/({REGEX_CMD})\s+(?P<group>{REGEX_GROUP})$")
+REGEX_CMD_GROUP_RENAME = re.compile(fr"^/({REGEX_CMD})\s+(?P<group>{REGEX_GROUP})\s+(?P<new_group>{REGEX_GROUP})$")
+
 REGEX_CMD_GROUP_MESSAGE = re.compile(fr'^/({REGEX_CMD})\s+(?P<group>{REGEX_GROUP})(\s+(.|\n)*)*')
 REGEX_CMD_GROUP_MEMBERS = re.compile(fr'^/({REGEX_CMD})\s+(?P<group>{REGEX_GROUP})(\s+(?P<member>{REGEX_MEMBER}))+$')
 
@@ -212,6 +214,24 @@ def db_insert_group(chat_id: int, group_name: str):
             )
 
 
+def db_rename_group(group_id: int, new_group_name: str):
+    logging.info(f"DB: renaming group: group_id=[{group_id}], new_group_name=[{new_group_name}]")
+    with connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "update chat_group set group_name = %s"
+                " where group_id = %s",
+                (new_group_name, group_id,)
+            )
+
+
+def db_delete_group(group_id: int):
+    logging.info(f"DB: deleting group: group_id=[{group_id}]")
+    with connection:
+        with connection.cursor() as cursor:
+            cursor.execute("delete from chat_group where group_id = %s", (group_id,))
+
+
 def db_insert_member(group_id: int, member: Member):
     logging.info(f"DB: inserting member: group_id=[{group_id}], member=[{member}]")
     with connection:
@@ -221,13 +241,6 @@ def db_insert_member(group_id: int, member: Member):
                 " values (%s, %s, %s) on conflict do nothing",
                 (group_id, member.member_name, member.user_id,)
             )
-
-
-def db_delete_group(group_id: int):
-    logging.info(f"DB: deleting group: group_id=[{group_id}]")
-    with connection:
-        with connection.cursor() as cursor:
-            cursor.execute("delete from chat_group where group_id = %s", (group_id,))
 
 
 def db_delete_member(group_id: int, member_name: str):
@@ -250,6 +263,7 @@ async def handler_help(message: types.Message):
             markdown_decoration.bold('Я поддерживаю команды:'),
             markdown.escape_md('/list_groups — просмотр списка групп'),
             markdown.escape_md('/add_group — добавление группы'),
+            markdown.escape_md('/rename_group — переименование группы'),
             markdown.escape_md('/remove_group — удаление группы'),
             markdown.escape_md('/list_members — список пользователей в группе'),
             markdown.escape_md('/add_members — добавление пользователей в группу'),
@@ -313,6 +327,47 @@ async def handler_add_group(message: types.Message):
 
     await message.reply(
         markdown.text("Группа", markdown_decoration.code(group_name), "добавлена!"),
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+
+@dp.message_handler(commands=['rename_group'])
+async def handler_rename_group(message: types.Message):
+    await check_access(message, Grant.WRITE_ACCESS)
+    match = REGEX_CMD_GROUP_RENAME.search(message.text)
+    if not match:
+        return await message.reply(
+            markdown.text(
+                markdown_decoration.bold("Пример вызова:"),
+                markdown_decoration.code("/rename_group group new_group_name"),
+                " ",
+                markdown.text("group:", markdown_decoration.code(REGEX_GROUP)),
+                sep='\n'
+            ),
+            parse_mode=ParseMode.MARKDOWN
+        )
+    group_name = match.group("group")
+    new_group_name = match.group("new_group")
+
+    group = db_get_group(chat_id=message.chat.id, group_name=group_name)
+    if not group:
+        return await message.reply(
+            markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
+            parse_mode=ParseMode.MARKDOWN
+        )
+    logging.info(f"group: {group}")
+
+    try:
+        db_rename_group(group_id=group.group_id, new_group_name=new_group_name)
+    except (Exception, psycopg2.Error) as error:
+        logging.error("Error for renaming group", error)
+        return await message.reply('Возникла ошибка при переименовании группы!')
+
+    await message.reply(
+        markdown.text(
+            "Группа", markdown_decoration.bold(group_name),
+            "переименована в", markdown_decoration.bold(new_group_name)
+        ),
         parse_mode=ParseMode.MARKDOWN
     )
 

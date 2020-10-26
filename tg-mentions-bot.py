@@ -254,6 +254,8 @@ async def handler_help(message: types.Message):
             markdown.escape_md('/list_members — список пользователей в группе'),
             markdown.escape_md('/add_members — добавление пользователей в группу'),
             markdown.escape_md('/remove_members — удаление пользователей из группы'),
+            markdown.escape_md('/enable_anarchy — включить анархию'),
+            markdown.escape_md('/disable_anarchy — выключить анархию'),
             markdown.escape_md('/call — позвать пользователей группы'),
             markdown.escape_md('/help — справка по всем операциям'),
             sep='\n'

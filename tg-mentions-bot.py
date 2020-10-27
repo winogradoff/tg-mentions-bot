@@ -69,6 +69,7 @@ dp.middleware.setup(LoggingMiddleware())
 
 group_cd = CallbackData('group', 'key', 'action')  # group:<id>:<action>
 
+MAX_GROUPS_PER_CHAT = 10
 MAX_GROUP_NAME_LENGTH = 10
 MAX_ALIASES_PER_GROUP = 3
 
@@ -401,9 +402,16 @@ async def handler_add_group(message: types.Message):
         db_insert_chat(chat_id=message.chat.id)
         db_select_chat_for_update(chat_id=message.chat.id)
 
-        group = db_get_group_by_alias_name(chat_id=message.chat.id, alias_name=group_name)
-        if group:
+        existing_groups: List[GroupAlias] = db_select_group_aliases_by_chat_id(chat_id=message.chat.id)
+
+        if group_name in {x.alias_name for x in existing_groups}:
             return await message.reply('Такая группа уже существует!')
+
+        if len(existing_groups) >= MAX_GROUPS_PER_CHAT:
+            return await message.reply(
+                f'Слишком много групп уже создано!'
+                f' Текущее ограничение для чата: {MAX_GROUPS_PER_CHAT}'
+            )
 
         group_id = db_insert_group(chat_id=message.chat.id)
         db_insert_group_alias(
@@ -497,7 +505,10 @@ async def handler_add_group_alias(message: types.Message):
             return await message.reply("Такой алиас уже используется!")
 
         if len([x for x in aliases if x.group_id == group.group_id]) >= MAX_ALIASES_PER_GROUP:
-            return await message.reply("Нельзя добавить так много алиасов!")
+            return await message.reply(
+                f"Нельзя добавить так много алиасов!"
+                f" Текущее ограничение для одной группы: {MAX_ALIASES_PER_GROUP}"
+            )
 
         db_insert_group_alias(
             chat_id=message.chat.id,

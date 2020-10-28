@@ -3,7 +3,7 @@ import re
 MAX_GROUPS_PER_CHAT = 10
 MAX_GROUP_NAME_LENGTH = 10
 MAX_ALIASES_PER_GROUP = 3
-MAX_MEMBERS_PER_GROUP = 50
+MAX_MEMBERS_PER_GROUP = 20
 
 REGEX_CMD = r"(?:[@a-zA-Z0-9]|[-_])+"
 REGEX_GROUP = r"(?:[a-zA-Z0-9]|[а-яА-ЯёЁ]|[-_])+"

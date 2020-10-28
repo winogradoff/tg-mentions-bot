@@ -407,7 +407,7 @@ async def handler_add_group(message: types.Message):
         if group_name in {x.alias_name for x in existing_groups}:
             return await message.reply('Такая группа уже существует!')
 
-        if len(existing_groups) >= MAX_GROUPS_PER_CHAT:
+        if len({x.group_id for x in existing_groups}) >= MAX_GROUPS_PER_CHAT:
             return await message.reply(
                 f'Слишком много групп уже создано!'
                 f' Текущее ограничение для чата: {MAX_GROUPS_PER_CHAT}'

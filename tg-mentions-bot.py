@@ -388,6 +388,14 @@ async def handler_add_members(message: types.Message):
             )
         logging.info(f"group: {group}")
 
+        existing_members: List[Member] = DB.select_members(group_id=group.group_id)
+
+        if len(existing_members) + len(all_members) > constraints.MAX_MEMBERS_PER_GROUP:
+            return await message.reply(
+                f'Слишком много пользователей уже добавлено в группу!'
+                f' Текущее ограничение для одной группы: {constraints.MAX_MEMBERS_PER_GROUP}'
+            )
+
         for member in all_members:
             DB.insert_member(group_id=group.group_id, member=member)
 

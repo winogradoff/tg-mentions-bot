@@ -3,7 +3,6 @@ import os
 from typing import List, Dict
 
 import aiogram.types as types
-import psycopg2
 from aiogram import Bot, Dispatcher
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
@@ -13,7 +12,7 @@ from aiogram.utils.exceptions import MessageNotModified
 from aiogram.utils.text_decorations import markdown_decoration
 
 import constraints
-import database
+import database as db
 from models import Grant, GroupAlias, Member, AuthorizationError, IllegalStateError
 
 logging.basicConfig(
@@ -24,8 +23,6 @@ logging.basicConfig(
 bot = Bot(token=os.getenv("TOKEN"))
 dp = Dispatcher(bot=bot, storage=MemoryStorage())
 dp.middleware.setup(LoggingMiddleware())
-
-DB = database.Database()
 
 
 @dp.message_handler(commands=['start', 'help'])
@@ -58,13 +55,14 @@ async def handler_help(message: types.Message):
 async def handler_list_groups(message: types.Message):
     await check_access(message, grant=Grant.READ_ACCESS)
 
-    aliases: List[GroupAlias] = DB.select_group_aliases_by_chat_id(chat_id=message.chat.id)
-    if len(aliases) == 0:
-        return await message.reply("Нет ни одной группы.", parse_mode=ParseMode.MARKDOWN)
+    with db.get_connection() as conn:
+        aliases: List[GroupAlias] = db.select_group_aliases_by_chat_id(conn, chat_id=message.chat.id)
+        if len(aliases) == 0:
+            return await message.reply("Нет ни одной группы.", parse_mode=ParseMode.MARKDOWN)
 
-    aliases_lookup: Dict[int, List[GroupAlias]] = {}
-    for a in DB.select_group_aliases_by_chat_id(chat_id=message.chat.id):
-        aliases_lookup.setdefault(a.group_id, []).append(a)
+        aliases_lookup: Dict[int, List[GroupAlias]] = {}
+        for a in db.select_group_aliases_by_chat_id(conn, chat_id=message.chat.id):
+            aliases_lookup.setdefault(a.group_id, []).append(a)
 
     groups_for_print = []
     for group_id in sorted({x.group_id for x in aliases}):
@@ -86,7 +84,7 @@ async def handler_list_groups(message: types.Message):
 
 @dp.message_handler(commands=['add_group'])
 async def handler_add_group(message: types.Message):
-    await check_access(message, grant=Grant.WRITE_ACCESS)
+    await check_access(message, Grant.WRITE_ACCESS)
     match = constraints.REGEX_CMD_GROUP.search(message.text)
     if not match:
         return await message.reply(
@@ -104,11 +102,11 @@ async def handler_add_group(message: types.Message):
     if len(group_name) > constraints.MAX_GROUP_NAME_LENGTH:
         return await message.reply('Слишком длинное название группы!')
 
-    with DB.get_connection():
-        DB.insert_chat(chat_id=message.chat.id)
-        DB.select_chat_for_update(chat_id=message.chat.id)
+    with db.get_connection() as conn:
+        db.insert_chat(conn, chat_id=message.chat.id)
+        db.select_chat_for_update(conn, chat_id=message.chat.id)
 
-        existing_groups: List[GroupAlias] = DB.select_group_aliases_by_chat_id(chat_id=message.chat.id)
+        existing_groups: List[GroupAlias] = db.select_group_aliases_by_chat_id(conn, chat_id=message.chat.id)
 
         if group_name in {x.alias_name for x in existing_groups}:
             return await message.reply('Такая группа уже существует!')
@@ -119,8 +117,9 @@ async def handler_add_group(message: types.Message):
                 f' Текущее ограничение для чата: {constraints.MAX_GROUPS_PER_CHAT}'
             )
 
-        group_id = DB.insert_group(chat_id=message.chat.id)
-        DB.insert_group_alias(
+        group_id = db.insert_group(conn, chat_id=message.chat.id)
+        db.insert_group_alias(
+            conn,
             chat_id=message.chat.id,
             group_id=group_id,
             alias_name=group_name
@@ -149,26 +148,26 @@ async def handler_remove_group(message: types.Message):
         )
     group_name = match.group("group")
 
-    with DB.get_connection():
-        DB.select_chat_for_update(chat_id=message.chat.id)
-        group = DB.get_group_by_alias_name(chat_id=message.chat.id, alias_name=group_name)
+    with db.get_connection() as conn:
+        db.select_chat_for_update(conn, chat_id=message.chat.id)
+        group = db.get_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
         if not group:
             return await message.reply(
                 markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
                 parse_mode=ParseMode.MARKDOWN
             )
         logging.info(f"group: {group}")
-        members = DB.select_members(group.group_id)
+        members = db.select_members(conn, group.group_id)
         if len(members) != 0:
             logging.info(f"members: {members}")
             return await message.reply('Группу нельзя удалить, в ней есть пользователи!')
 
-        group_aliases = DB.select_group_aliases_by_group_id(group_id=group.group_id)
+        group_aliases = db.select_group_aliases_by_group_id(conn, group_id=group.group_id)
 
         for a in group_aliases:
-            DB.delete_group_alias(alias_id=a.alias_id)
+            db.delete_group_alias(conn, alias_id=a.alias_id)
 
-        DB.delete_group(group_id=group.group_id)
+        db.delete_group(conn, group_id=group.group_id)
 
     await message.reply(
         markdown.text("Группа", markdown_decoration.bold(group_name), "удалена!"),
@@ -195,9 +194,9 @@ async def handler_add_group_alias(message: types.Message):
     group_name = match.group('group')
     group_alias = match.group('alias')
 
-    with DB.get_connection():
-        DB.select_chat_for_update(chat_id=message.chat.id)
-        group = DB.get_group_by_alias_name(chat_id=message.chat.id, alias_name=group_name)
+    with db.get_connection() as conn:
+        db.select_chat_for_update(conn, chat_id=message.chat.id)
+        group = db.get_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
         if not group:
             return await message.reply(
                 markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
@@ -205,7 +204,7 @@ async def handler_add_group_alias(message: types.Message):
             )
         logging.info(f"group: {group}")
 
-        aliases: List[GroupAlias] = DB.select_group_aliases_by_chat_id(chat_id=message.chat.id)
+        aliases: List[GroupAlias] = db.select_group_aliases_by_chat_id(conn, chat_id=message.chat.id)
 
         if group_alias in set(x.alias_name for x in aliases):
             return await message.reply("Такой алиас уже используется!")
@@ -216,7 +215,8 @@ async def handler_add_group_alias(message: types.Message):
                 f" Текущее ограничение для одной группы: {constraints.MAX_ALIASES_PER_GROUP}"
             )
 
-        DB.insert_group_alias(
+        db.insert_group_alias(
+            conn,
             chat_id=message.chat.id,
             group_id=group.group_id,
             alias_name=group_alias
@@ -250,9 +250,9 @@ async def handler_remove_group_alias(message: types.Message):
     group_name = match.group('group')
     alias_name = match.group('alias')
 
-    with DB.get_connection():
-        DB.select_chat_for_update(chat_id=message.chat.id)
-        group = DB.get_group_by_alias_name(chat_id=message.chat.id, alias_name=group_name)
+    with db.get_connection() as conn:
+        db.select_chat_for_update(conn, chat_id=message.chat.id)
+        group = db.get_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
         if not group:
             return await message.reply(
                 markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
@@ -262,7 +262,7 @@ async def handler_remove_group_alias(message: types.Message):
 
         group_aliases: Dict[str, GroupAlias] = {
             x.alias_name: x
-            for x in DB.select_group_aliases_by_group_id(group_id=group.group_id)
+            for x in db.select_group_aliases_by_group_id(conn, group_id=group.group_id)
         }
 
         if alias_name not in group_aliases:
@@ -281,7 +281,7 @@ async def handler_remove_group_alias(message: types.Message):
                 parse_mode=ParseMode.MARKDOWN
             )
 
-        DB.delete_group_alias(alias_id=group_alias.alias_id)
+        db.delete_group_alias(conn, alias_id=group_alias.alias_id)
 
     await message.reply(
         markdown.text(
@@ -308,14 +308,16 @@ async def handler_list_members(message: types.Message):
             parse_mode=ParseMode.MARKDOWN
         )
     group_name = match.group("group")
-    group = DB.get_group_by_alias_name(chat_id=message.chat.id, alias_name=group_name)
-    if not group:
-        return await message.reply(
-            markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
-            parse_mode=ParseMode.MARKDOWN
-        )
 
-    members = DB.select_members(group_id=group.group_id)
+    with db.get_connection() as conn:
+        group = db.get_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
+        if not group:
+            return await message.reply(
+                markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
+                parse_mode=ParseMode.MARKDOWN
+            )
+        members = db.select_members(conn, group_id=group.group_id)
+
     members = sorted(convert_members_to_names(members))
     logging.info(f"members: {members}")
 
@@ -377,10 +379,10 @@ async def handler_add_members(message: types.Message):
     if len(all_members) < 1:
         return await message.reply('Нужно указать хотя бы одного пользователя!')
 
-    with DB.get_connection():
-        DB.select_chat_for_update(chat_id=message.chat.id)
+    with db.get_connection() as conn:
+        db.select_chat_for_update(conn, chat_id=message.chat.id)
 
-        group = DB.get_group_by_alias_name(chat_id=message.chat.id, alias_name=group_name)
+        group = db.get_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
         if not group:
             return await message.reply(
                 markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
@@ -388,7 +390,7 @@ async def handler_add_members(message: types.Message):
             )
         logging.info(f"group: {group}")
 
-        existing_members: List[Member] = DB.select_members(group_id=group.group_id)
+        existing_members: List[Member] = db.select_members(conn, group_id=group.group_id)
 
         if len(existing_members) + len(all_members) > constraints.MAX_MEMBERS_PER_GROUP:
             return await message.reply(
@@ -397,7 +399,7 @@ async def handler_add_members(message: types.Message):
             )
 
         for member in all_members:
-            DB.insert_member(group_id=group.group_id, member=member)
+            db.insert_member(conn, group_id=group.group_id, member=member)
 
     await message.reply(
         markdown.text(
@@ -431,37 +433,36 @@ async def handler_remove_members(message: types.Message):
             parse_mode=ParseMode.MARKDOWN
         )
     group_name = match.group('group')
-    group = DB.get_group_by_alias_name(chat_id=message.chat.id, alias_name=group_name)
-    if not group:
-        return await message.reply(
-            markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
-            parse_mode=ParseMode.MARKDOWN
-        )
-    logging.info(f"group: {group}")
 
-    mentions = [
-        x.get_text(message.text)
-        for x in message.entities
-        if x.type == MessageEntityType.MENTION
-    ]
-    text_mentions = [
-        f"[{x.user.full_name}]({x.user.url})"
-        for x in message.entities
-        if x.type == MessageEntityType.TEXT_MENTION
-    ]
-    all_members = mentions + text_mentions
-    logging.info(f"members: {all_members}")
+    with db.get_connection() as conn:
+        db.select_chat_for_update(conn, chat_id=message.chat.id)
 
-    if len(all_members) < 1:
-        return await message.reply('Нужно указать хотя бы одного пользователя!')
+        group = db.get_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
+        if not group:
+            return await message.reply(
+                markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
+                parse_mode=ParseMode.MARKDOWN
+            )
+        logging.info(f"group: {group}")
 
-    with DB.get_connection():
+        mentions = [
+            x.get_text(message.text)
+            for x in message.entities
+            if x.type == MessageEntityType.MENTION
+        ]
+        text_mentions = [
+            f"[{x.user.full_name}]({x.user.url})"
+            for x in message.entities
+            if x.type == MessageEntityType.TEXT_MENTION
+        ]
+        all_members = mentions + text_mentions
+        logging.info(f"members: {all_members}")
+
+        if len(all_members) < 1:
+            return await message.reply('Нужно указать хотя бы одного пользователя!')
+
         for member in all_members:
-            try:
-                DB.delete_member(group_id=group.group_id, member_name=member)
-            except (Exception, psycopg2.Error) as error:
-                logging.error("Error for delete operation", error)
-                return await message.reply('Возникла ошибка при удалении пользователей!')
+            db.delete_member(conn, group_id=group.group_id, member_name=member)
 
     await message.reply(
         markdown.text(
@@ -492,15 +493,17 @@ async def handler_call(message: types.Message):
             parse_mode=ParseMode.MARKDOWN
         )
     group_name = match.group("group")
-    group = DB.get_group_by_alias_name(chat_id=message.chat.id, alias_name=group_name)
-    if not group:
-        return await message.reply(
-            markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
-            parse_mode=ParseMode.MARKDOWN
-        )
-    logging.info(f"group: {group}")
 
-    members = DB.select_members(group_id=group.group_id)
+    with db.get_connection() as conn:
+        group = db.get_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
+        if not group:
+            return await message.reply(
+                markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
+                parse_mode=ParseMode.MARKDOWN
+            )
+        logging.info(f"group: {group}")
+        members = db.select_members(conn, group_id=group.group_id)
+
     if len(members) == 0:
         return await message.reply('Группа пользователей пуста!')
 
@@ -516,16 +519,18 @@ async def handler_call(message: types.Message):
 @dp.message_handler(commands=['enable_anarchy'])
 async def handler_enable_anarchy(message: types.Message):
     await check_access(message, Grant.CHANGE_CHAT_SETTINGS)
-    DB.insert_chat(chat_id=message.chat.id)
-    DB.set_chat_anarchy(chat_id=message.chat.id, is_anarchy_enabled=True)
+    with db.get_connection() as conn:
+        db.insert_chat(conn, chat_id=message.chat.id)
+        db.set_chat_anarchy(conn, chat_id=message.chat.id, is_anarchy_enabled=True)
     await message.reply("Анархия включена")
 
 
 @dp.message_handler(commands=['disable_anarchy'])
 async def handler_disable_anarchy(message: types.Message):
     await check_access(message, Grant.CHANGE_CHAT_SETTINGS)
-    DB.insert_chat(chat_id=message.chat.id)
-    DB.set_chat_anarchy(chat_id=message.chat.id, is_anarchy_enabled=False)
+    with db.get_connection() as conn:
+        db.insert_chat(conn, chat_id=message.chat.id)
+        db.set_chat_anarchy(conn, chat_id=message.chat.id, is_anarchy_enabled=False)
     await message.reply("Анархия выключена")
 
 
@@ -565,7 +570,8 @@ async def check_access(message: types.Message, grant: Grant):
         if grant == Grant.READ_ACCESS:
             logging.info("No restrictions for read access")
         elif grant == Grant.WRITE_ACCESS:
-            chat = DB.select_chat(chat_id=chat_id)
+            with db.get_connection() as conn:
+                chat = db.select_chat(conn, chat_id=chat_id)
             if not chat:
                 raise AuthorizationError("Chat not found => anarchy is disabled by default")
             elif not chat.is_anarchy_enabled:
@@ -602,11 +608,15 @@ async def shutdown(dispatcher: Dispatcher):
     await dispatcher.storage.wait_closed()
 
 
-if __name__ == '__main__':
+def main():
     try:
-        DB.connect()
-        DB.create_schema()
+        db.create_pool()
+        with db.get_connection() as conn:
+            db.create_schema(conn)
         executor.start_polling(dp, on_shutdown=shutdown)
     finally:
-        if DB is not None:
-            DB.disconnect()
+        db.close_pool()
+
+
+if __name__ == '__main__':
+    main()

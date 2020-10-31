@@ -61,7 +61,7 @@ async def handler_list_groups(message: types.Message):
             return await message.reply("Нет ни одной группы.", parse_mode=ParseMode.MARKDOWN)
 
         aliases_lookup: Dict[int, List[GroupAlias]] = {}
-        for a in db.select_group_aliases_by_chat_id(conn, chat_id=message.chat.id):
+        for a in aliases:
             aliases_lookup.setdefault(a.group_id, []).append(a)
 
     groups_for_print = []
@@ -150,7 +150,7 @@ async def handler_remove_group(message: types.Message):
 
     with db.get_connection() as conn:
         db.select_chat_for_update(conn, chat_id=message.chat.id)
-        group = db.get_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
+        group = db.select_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
         if not group:
             return await message.reply(
                 markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
@@ -196,7 +196,7 @@ async def handler_add_group_alias(message: types.Message):
 
     with db.get_connection() as conn:
         db.select_chat_for_update(conn, chat_id=message.chat.id)
-        group = db.get_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
+        group = db.select_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
         if not group:
             return await message.reply(
                 markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
@@ -252,7 +252,7 @@ async def handler_remove_group_alias(message: types.Message):
 
     with db.get_connection() as conn:
         db.select_chat_for_update(conn, chat_id=message.chat.id)
-        group = db.get_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
+        group = db.select_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
         if not group:
             return await message.reply(
                 markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
@@ -310,7 +310,7 @@ async def handler_list_members(message: types.Message):
     group_name = match.group("group")
 
     with db.get_connection() as conn:
-        group = db.get_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
+        group = db.select_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
         if not group:
             return await message.reply(
                 markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
@@ -382,7 +382,7 @@ async def handler_add_members(message: types.Message):
     with db.get_connection() as conn:
         db.select_chat_for_update(conn, chat_id=message.chat.id)
 
-        group = db.get_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
+        group = db.select_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
         if not group:
             return await message.reply(
                 markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
@@ -437,7 +437,7 @@ async def handler_remove_members(message: types.Message):
     with db.get_connection() as conn:
         db.select_chat_for_update(conn, chat_id=message.chat.id)
 
-        group = db.get_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
+        group = db.select_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
         if not group:
             return await message.reply(
                 markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
@@ -495,7 +495,7 @@ async def handler_call(message: types.Message):
     group_name = match.group("group")
 
     with db.get_connection() as conn:
-        group = db.get_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
+        group = db.select_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
         if not group:
             return await message.reply(
                 markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),

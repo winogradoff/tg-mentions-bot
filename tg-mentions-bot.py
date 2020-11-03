@@ -92,7 +92,8 @@ async def handler_add_group(message: types.Message):
                 markdown_decoration.bold("Пример вызова:"),
                 markdown_decoration.code("/add_group group"),
                 " ",
-                markdown.text("group:", markdown_decoration.code(constraints.REGEX_GROUP)),
+                markdown_decoration.bold("Ограничения:"),
+                markdown.text("group:", constraints.MESSAGE_FOR_GROUP),
                 sep='\n'
             ),
             parse_mode=ParseMode.MARKDOWN
@@ -141,7 +142,8 @@ async def handler_remove_group(message: types.Message):
                 markdown_decoration.bold("Пример вызова:"),
                 markdown_decoration.code("/remove_group group"),
                 " ",
-                markdown.text("group:", markdown_decoration.code(constraints.REGEX_GROUP)),
+                markdown_decoration.bold("Ограничения:"),
+                markdown.text("group:", constraints.MESSAGE_FOR_GROUP),
                 sep='\n'
             ),
             parse_mode=ParseMode.MARKDOWN
@@ -185,8 +187,9 @@ async def handler_add_group_alias(message: types.Message):
                 markdown_decoration.bold("Пример вызова:"),
                 markdown_decoration.code("/add_group_aliases group alias"),
                 " ",
-                markdown.text("group:", markdown_decoration.code(constraints.REGEX_GROUP)),
-                markdown.text("alias:", markdown_decoration.code(constraints.REGEX_GROUP)),
+                markdown_decoration.bold("Ограничения:"),
+                markdown.text("group:", constraints.MESSAGE_FOR_GROUP),
+                markdown.text("alias:", constraints.MESSAGE_FOR_GROUP),
                 sep='\n'
             ),
             parse_mode=ParseMode.MARKDOWN
@@ -241,8 +244,9 @@ async def handler_remove_group_alias(message: types.Message):
                 markdown_decoration.bold("Пример вызова:"),
                 markdown_decoration.code("/remove_group_alias group alias"),
                 " ",
-                markdown.text("group:", markdown_decoration.code(constraints.REGEX_GROUP)),
-                markdown.text("alias:", markdown_decoration.code(constraints.REGEX_GROUP)),
+                markdown_decoration.bold("Ограничения:"),
+                markdown.text("group:", constraints.MESSAGE_FOR_GROUP),
+                markdown.text("alias:", constraints.MESSAGE_FOR_GROUP),
                 sep='\n'
             ),
             parse_mode=ParseMode.MARKDOWN
@@ -302,7 +306,8 @@ async def handler_list_members(message: types.Message):
                 markdown_decoration.bold("Пример вызова:"),
                 markdown_decoration.code("/list_members group"),
                 " ",
-                markdown.text("group:", markdown_decoration.code(constraints.REGEX_GROUP)),
+                markdown_decoration.bold("Ограничения:"),
+                markdown.text("group:", constraints.MESSAGE_FOR_GROUP),
                 sep='\n'
             ),
             parse_mode=ParseMode.MARKDOWN
@@ -350,8 +355,9 @@ async def handler_add_members(message: types.Message):
                 markdown_decoration.bold("Пример вызова:"),
                 markdown_decoration.code("/add_members group username1 username2"),
                 " ",
-                markdown.text("group:", markdown_decoration.code(constraints.REGEX_GROUP)),
-                markdown.text("username:", markdown_decoration.code(constraints.REGEX_MEMBER)),
+                markdown_decoration.bold("Ограничения:"),
+                markdown.text("group:", constraints.MESSAGE_FOR_GROUP),
+                markdown.text("username:", constraints.MESSAGE_FOR_MEMBER),
                 sep='\n'
             ),
             parse_mode=ParseMode.MARKDOWN
@@ -426,8 +432,9 @@ async def handler_remove_members(message: types.Message):
                 markdown_decoration.bold("Пример вызова:"),
                 markdown_decoration.code("/remove_members group username1 username2"),
                 " ",
-                markdown.text("group:", markdown_decoration.code(constraints.REGEX_GROUP)),
-                markdown.text("username:", markdown_decoration.code(constraints.REGEX_MEMBER)),
+                markdown_decoration.bold("Ограничения:"),
+                markdown.text("group:", constraints.MESSAGE_FOR_GROUP),
+                markdown.text("username:", constraints.MESSAGE_FOR_MEMBER),
                 sep='\n'
             ),
             parse_mode=ParseMode.MARKDOWN
@@ -487,7 +494,8 @@ async def handler_call(message: types.Message):
                 markdown_decoration.bold("Пример вызова:"),
                 markdown_decoration.code("/call group"),
                 " ",
-                markdown.text("group:", markdown_decoration.code(constraints.REGEX_GROUP)),
+                markdown_decoration.bold("Ограничения:"),
+                markdown.text("group:", constraints.MESSAGE_FOR_GROUP),
                 sep='\n'
             ),
             parse_mode=ParseMode.MARKDOWN

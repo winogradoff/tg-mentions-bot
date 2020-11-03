@@ -197,6 +197,9 @@ async def handler_add_group_alias(message: types.Message):
     group_name = match.group('group')
     group_alias = match.group('alias')
 
+    if len(group_alias) > constraints.MAX_GROUP_NAME_LENGTH:
+        return await message.reply('Слишком длинное название группы!')
+
     with db.get_connection() as conn:
         db.select_chat_for_update(conn, chat_id=message.chat.id)
         group = db.select_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)

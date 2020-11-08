@@ -1,6 +1,6 @@
 import json
 from dataclasses import dataclass
-from enum import Enum, auto
+from enum import Enum, auto, IntEnum, unique
 from typing import Optional
 
 
@@ -36,18 +36,26 @@ class Member:
     user_id: Optional[int] = None
 
 
+@unique
+class CallbackType(IntEnum):
+    CANCEL = 1
+    SELECT_GROUP = 2
+
+
 @dataclass
 class CallbackData:
-    group_id: int
-    chat_id: int
-    user_id: int
+    callback_type: CallbackType
+    chat_id: Optional[int] = None
+    user_id: Optional[int] = None
+    group_id: Optional[int] = None
 
     def to_json(self) -> str:
         return json.dumps(
             {
-                "group": self.group_id,
+                "type": self.callback_type.value,
                 "chat": self.chat_id,
-                "user": self.user_id
+                "user": self.user_id,
+                "group": self.group_id
             }
         )
 
@@ -55,9 +63,10 @@ class CallbackData:
     def from_json(cls, data: str) -> 'CallbackData':
         json_data = json.loads(data)
         return CallbackData(
-            chat_id=json_data["chat"],
-            user_id=json_data["user"],
-            group_id=json_data["group"]
+            callback_type=CallbackType(json_data["type"]),
+            chat_id=json_data.get("chat"),
+            user_id=json_data.get("user"),
+            group_id=json_data.get("group"),
         )
 
 

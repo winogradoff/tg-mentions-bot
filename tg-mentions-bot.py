@@ -14,7 +14,7 @@ from aiogram.utils.text_decorations import markdown_decoration
 
 import constraints
 import database as db
-from models import Grant, GroupAlias, Member, AuthorizationError, IllegalStateError, CallbackData
+from models import Grant, GroupAlias, Member, AuthorizationError, IllegalStateError, CallbackData, CallbackType
 
 logging.basicConfig(
     format=u'%(filename)+13s [ LINE:%(lineno)-4s] %(levelname)-8s [%(asctime)s] %(message)s',
@@ -44,7 +44,8 @@ async def handler_help(message: types.Message):
             markdown.escape_md('/remove_members — удаление пользователей из группы'),
             markdown.escape_md('/enable_anarchy — включить анархию'),
             markdown.escape_md('/disable_anarchy — выключить анархию'),
-            markdown.escape_md('/call — позвать пользователей группы'),
+            markdown.escape_md('/call — позвать пользователей'),
+            markdown.escape_md('/xcall — позвать пользователей (inline-диалог)'),
             markdown.escape_md('/help — справка по всем операциям'),
             sep='\n'
         ),
@@ -528,8 +529,8 @@ async def handler_call(message: types.Message):
         await message.reply(text, parse_mode=ParseMode.MARKDOWN)
 
 
-@dp.message_handler(commands=['test'])
-async def handler_test(message: types.Message):
+@dp.message_handler(commands=['xcall'])
+async def handler_xcall(message: types.Message):
     await check_access(message, grant=Grant.READ_ACCESS)
 
     with db.get_connection() as conn:
@@ -543,6 +544,17 @@ async def handler_test(message: types.Message):
 
     inline_keyboard = InlineKeyboardMarkup()
 
+    inline_keyboard.add(
+        InlineKeyboardButton(
+            text="✖ Отмена ✖",
+            callback_data=CallbackData(
+                callback_type=CallbackType.CANCEL,
+                chat_id=message.chat.id,
+                user_id=message.from_user.id
+            ).to_json()
+        )
+    )
+
     groups_for_print = []
     for group_id in sorted({x.group_id for x in aliases}):
         group_aliases = sorted(aliases_lookup.get(group_id, []), key=lambda x: x.alias_id)
@@ -555,22 +567,23 @@ async def handler_test(message: types.Message):
             InlineKeyboardButton(
                 text=f"{head}{tail}",
                 callback_data=CallbackData(
-                    group_id=group_id,
+                    callback_type=CallbackType.SELECT_GROUP,
                     chat_id=message.chat.id,
-                    user_id=message.from_user.id
+                    user_id=message.from_user.id,
+                    group_id=group_id
                 ).to_json()
             )
         )
 
     await message.reply(
-        markdown_decoration.bold("Выбери группу"),
+        markdown_decoration.bold("Выберите группу"),
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=inline_keyboard
     )
 
 
 @dp.callback_query_handler(lambda c: len(c.data) > 0)
-async def process_callback_test(callback_query: types.CallbackQuery):
+async def process_callback_xcall(callback_query: types.CallbackQuery):
     chat_id = callback_query.message.chat.id
     user_id = callback_query.from_user.id
 
@@ -597,6 +610,13 @@ async def process_callback_test(callback_query: types.CallbackQuery):
             show_alert=True
         )
 
+    if callback_data.callback_type == CallbackType.CANCEL:
+        await callback_query.message.delete()
+        return await bot.answer_callback_query(
+            callback_query_id=callback_query.id,
+            text="Операция отменена!",
+        )
+
     with db.get_connection() as conn:
         members = db.select_members(conn, group_id=callback_data.group_id)
 
@@ -619,7 +639,7 @@ async def handler_enable_anarchy(message: types.Message):
     with db.get_connection() as conn:
         db.insert_chat(conn, chat_id=message.chat.id)
         db.set_chat_anarchy(conn, chat_id=message.chat.id, is_anarchy_enabled=True)
-    await message.reply("Анархия включена")
+    await message.reply("Анархия включена. Только администраторы и владелец чата могут настраивать бота.")
 
 
 @dp.message_handler(commands=['disable_anarchy'])
@@ -628,7 +648,7 @@ async def handler_disable_anarchy(message: types.Message):
     with db.get_connection() as conn:
         db.insert_chat(conn, chat_id=message.chat.id)
         db.set_chat_anarchy(conn, chat_id=message.chat.id, is_anarchy_enabled=False)
-    await message.reply("Анархия выключена")
+    await message.reply("Анархия выключена. Все пользователи могут настраивать бота.")
 
 
 @dp.errors_handler()

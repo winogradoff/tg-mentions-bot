@@ -37,8 +37,8 @@ async def handler_help(message: types.Message):
             markdown.escape_md('/list_groups — просмотр списка групп'),
             markdown.escape_md('/add_group — добавление группы'),
             markdown.escape_md('/remove_group — удаление группы'),
-            markdown.escape_md('/add_group_alias — добавление алиаса группы'),
-            markdown.escape_md('/remove_group_alias — удаление алиаса группы'),
+            markdown.escape_md('/add_alias — добавление алиаса группы'),
+            markdown.escape_md('/remove_alias — удаление алиаса группы'),
             markdown.escape_md('/list_members — список пользователей в группе'),
             markdown.escape_md('/add_members — добавление пользователей в группу'),
             markdown.escape_md('/remove_members — удаление пользователей из группы'),
@@ -178,7 +178,7 @@ async def handler_remove_group(message: types.Message):
     )
 
 
-@dp.message_handler(commands=['add_group_alias'])
+@dp.message_handler(commands=['add_group_alias', 'add_alias'])
 async def handler_add_group_alias(message: types.Message):
     await check_access(message, Grant.WRITE_ACCESS)
     match = constraints.REGEX_CMD_GROUP_ALIAS.search(message.text)
@@ -238,7 +238,7 @@ async def handler_add_group_alias(message: types.Message):
     )
 
 
-@dp.message_handler(commands=['remove_group_alias'])
+@dp.message_handler(commands=['remove_group_alias', 'remove_alias'])
 async def handler_remove_group_alias(message: types.Message):
     await check_access(message, Grant.WRITE_ACCESS)
     match = constraints.REGEX_CMD_GROUP_ALIAS.search(message.text)

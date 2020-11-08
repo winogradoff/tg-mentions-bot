@@ -8,9 +8,9 @@ from aiogram import Bot, Dispatcher
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
 from aiogram.types import ParseMode, MessageEntityType, ChatMember, ChatType, InlineKeyboardButton, InlineKeyboardMarkup
-from aiogram.utils import markdown, executor
+from aiogram.utils import markdown as md, executor
 from aiogram.utils.exceptions import MessageNotModified
-from aiogram.utils.text_decorations import markdown_decoration
+from aiogram.utils.text_decorations import markdown_decoration as md_style
 
 import constraints
 import database as db
@@ -29,31 +29,60 @@ dp.middleware.setup(LoggingMiddleware())
 @dp.message_handler(commands=['start', 'help'])
 async def handler_help(message: types.Message):
     await check_access(message, grant=Grant.READ_ACCESS)
+
+    common_commands = {
+        'help': 'справка по всем командам бота',
+        'groups': 'показать список групп',
+        'members': 'показать список пользователей в группе',
+        'call': 'позвать пользователей',
+        'xcall': 'позвать пользователей (inline-диалог)'
+    }
+
+    admin_commands = {
+        'add_group': 'добавление группы',
+        'remove_group': 'удаление группы',
+        'add_alias': 'добавление алиаса группы',
+        'remove_alias': 'удаление алиаса группы',
+        'add_members': 'добавление пользователей в группу',
+        'remove_members': 'удаление пользователей из группы',
+        'enable_anarchy': 'всем доступны настройки',
+        'disable_anarchy': 'только админам доступны настройки',
+    }
+
+    def prepare_commands(commands: Dict[str, str]) -> List[str]:
+        return [
+            md.text(md.escape_md(f"/{x[0]}"), "—", x[1])
+            for x in commands.items()
+        ]
+
     await message.reply(
-        text=markdown.text(
+        text=md.text(
             f"Привет, {message.from_user.get_mention()}! 👋",
             "",
-            markdown_decoration.bold('Я поддерживаю команды:'),
-            markdown.escape_md('/list_groups — просмотр списка групп'),
-            markdown.escape_md('/add_group — добавление группы'),
-            markdown.escape_md('/remove_group — удаление группы'),
-            markdown.escape_md('/add_alias — добавление алиаса группы'),
-            markdown.escape_md('/remove_alias — удаление алиаса группы'),
-            markdown.escape_md('/list_members — список пользователей в группе'),
-            markdown.escape_md('/add_members — добавление пользователей в группу'),
-            markdown.escape_md('/remove_members — удаление пользователей из группы'),
-            markdown.escape_md('/enable_anarchy — включить анархию'),
-            markdown.escape_md('/disable_anarchy — выключить анархию'),
-            markdown.escape_md('/call — позвать пользователей'),
-            markdown.escape_md('/xcall — позвать пользователей (inline-диалог)'),
-            markdown.escape_md('/help — справка по всем операциям'),
+            md_style.bold("Пример работы с ботом:"),
+            md_style.code("/add_group group1"),
+            md_style.code("/add_members group1 @user1 @user2 @user3"),
+            md_style.code("/call group1"),
+            "",
+            md.text(
+                "Команда", md_style.italic("call"),
+                "вызовет ранее добавленных пользователей из группы", md_style.italic("group1"),
+                "вот в таком виде:"
+            ),
+            md_style.code("@user1 @user2 @user3"),
+            "",
+            md_style.bold("Общие команды:"),
+            *prepare_commands(common_commands),
+            "",
+            md_style.bold("Административные команды:"),
+            *prepare_commands(admin_commands),
             sep='\n'
         ),
         parse_mode=ParseMode.MARKDOWN
     )
 
 
-@dp.message_handler(commands=['list_groups'])
+@dp.message_handler(commands=['groups'])
 async def handler_list_groups(message: types.Message):
     await check_access(message, grant=Grant.READ_ACCESS)
 
@@ -75,9 +104,9 @@ async def handler_list_groups(message: types.Message):
         groups_for_print.append(f"- {head}{tail}")
 
     await message.reply(
-        markdown.text(
-            markdown_decoration.bold("Вот такие группы существуют:"),
-            markdown_decoration.code("\n".join(groups_for_print)),
+        md.text(
+            md_style.bold("Вот такие группы существуют:"),
+            md_style.code("\n".join(groups_for_print)),
             sep='\n'
         ),
         parse_mode=ParseMode.MARKDOWN
@@ -90,12 +119,12 @@ async def handler_add_group(message: types.Message):
     match = constraints.REGEX_CMD_GROUP.search(message.text)
     if not match:
         return await message.reply(
-            markdown.text(
-                markdown_decoration.bold("Пример вызова:"),
-                markdown_decoration.code("/add_group group"),
+            md.text(
+                md_style.bold("Пример вызова:"),
+                md_style.code("/add_group group"),
                 " ",
-                markdown_decoration.bold("Ограничения:"),
-                markdown.text("group:", constraints.MESSAGE_FOR_GROUP),
+                md_style.bold("Ограничения:"),
+                md.text("group:", constraints.MESSAGE_FOR_GROUP),
                 sep='\n'
             ),
             parse_mode=ParseMode.MARKDOWN
@@ -129,7 +158,7 @@ async def handler_add_group(message: types.Message):
         )
 
     await message.reply(
-        markdown.text("Группа", markdown_decoration.code(group_name), "добавлена!"),
+        md.text("Группа", md_style.code(group_name), "добавлена!"),
         parse_mode=ParseMode.MARKDOWN
     )
 
@@ -140,12 +169,12 @@ async def handler_remove_group(message: types.Message):
     match = constraints.REGEX_CMD_GROUP.search(message.text)
     if not match:
         return await message.reply(
-            markdown.text(
-                markdown_decoration.bold("Пример вызова:"),
-                markdown_decoration.code("/remove_group group"),
+            md.text(
+                md_style.bold("Пример вызова:"),
+                md_style.code("/remove_group group"),
                 " ",
-                markdown_decoration.bold("Ограничения:"),
-                markdown.text("group:", constraints.MESSAGE_FOR_GROUP),
+                md_style.bold("Ограничения:"),
+                md.text("group:", constraints.MESSAGE_FOR_GROUP),
                 sep='\n'
             ),
             parse_mode=ParseMode.MARKDOWN
@@ -157,7 +186,7 @@ async def handler_remove_group(message: types.Message):
         group = db.select_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
         if not group:
             return await message.reply(
-                markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
+                md.text('Группа', md_style.code(group_name), 'не найдена!'),
                 parse_mode=ParseMode.MARKDOWN
             )
         logging.info(f"group: {group}")
@@ -174,7 +203,7 @@ async def handler_remove_group(message: types.Message):
         db.delete_group(conn, group_id=group.group_id)
 
     await message.reply(
-        markdown.text("Группа", markdown_decoration.bold(group_name), "удалена!"),
+        md.text("Группа", md_style.bold(group_name), "удалена!"),
         parse_mode=ParseMode.MARKDOWN
     )
 
@@ -185,13 +214,13 @@ async def handler_add_group_alias(message: types.Message):
     match = constraints.REGEX_CMD_GROUP_ALIAS.search(message.text)
     if not match:
         return await message.reply(
-            markdown.text(
-                markdown_decoration.bold("Пример вызова:"),
-                markdown_decoration.code("/add_alias group alias"),
+            md.text(
+                md_style.bold("Пример вызова:"),
+                md_style.code("/add_alias group alias"),
                 " ",
-                markdown_decoration.bold("Ограничения:"),
-                markdown.text("group:", constraints.MESSAGE_FOR_GROUP),
-                markdown.text("alias:", constraints.MESSAGE_FOR_GROUP),
+                md_style.bold("Ограничения:"),
+                md.text("group:", constraints.MESSAGE_FOR_GROUP),
+                md.text("alias:", constraints.MESSAGE_FOR_GROUP),
                 sep='\n'
             ),
             parse_mode=ParseMode.MARKDOWN
@@ -207,7 +236,7 @@ async def handler_add_group_alias(message: types.Message):
         group = db.select_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
         if not group:
             return await message.reply(
-                markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
+                md.text('Группа', md_style.code(group_name), 'не найдена!'),
                 parse_mode=ParseMode.MARKDOWN
             )
         logging.info(f"group: {group}")
@@ -231,9 +260,9 @@ async def handler_add_group_alias(message: types.Message):
         )
 
     await message.reply(
-        markdown.text(
-            "Для группы", markdown_decoration.code(group_name),
-            "добавлен алиас", markdown_decoration.code(group_alias)
+        md.text(
+            "Для группы", md_style.code(group_name),
+            "добавлен алиас", md_style.code(group_alias)
         ),
         parse_mode=ParseMode.MARKDOWN
     )
@@ -245,13 +274,13 @@ async def handler_remove_group_alias(message: types.Message):
     match = constraints.REGEX_CMD_GROUP_ALIAS.search(message.text)
     if not match:
         return await message.reply(
-            markdown.text(
-                markdown_decoration.bold("Пример вызова:"),
-                markdown_decoration.code("/remove_alias group alias"),
+            md.text(
+                md_style.bold("Пример вызова:"),
+                md_style.code("/remove_alias group alias"),
                 " ",
-                markdown_decoration.bold("Ограничения:"),
-                markdown.text("group:", constraints.MESSAGE_FOR_GROUP),
-                markdown.text("alias:", constraints.MESSAGE_FOR_GROUP),
+                md_style.bold("Ограничения:"),
+                md.text("group:", constraints.MESSAGE_FOR_GROUP),
+                md.text("alias:", constraints.MESSAGE_FOR_GROUP),
                 sep='\n'
             ),
             parse_mode=ParseMode.MARKDOWN
@@ -264,7 +293,7 @@ async def handler_remove_group_alias(message: types.Message):
         group = db.select_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
         if not group:
             return await message.reply(
-                markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
+                md.text('Группа', md_style.code(group_name), 'не найдена!'),
                 parse_mode=ParseMode.MARKDOWN
             )
         logging.info(f"group: {group}")
@@ -276,9 +305,9 @@ async def handler_remove_group_alias(message: types.Message):
 
         if alias_name not in group_aliases:
             return await message.reply(
-                markdown.text(
-                    'Алиас', markdown_decoration.code(alias_name),
-                    'не найден для группы', markdown_decoration.code(group_name)
+                md.text(
+                    'Алиас', md_style.code(alias_name),
+                    'не найден для группы', md_style.code(group_name)
                 ),
                 parse_mode=ParseMode.MARKDOWN
             )
@@ -286,33 +315,33 @@ async def handler_remove_group_alias(message: types.Message):
 
         if len(group_aliases) == 1:
             return await message.reply(
-                markdown.text("Нельзя удалить единственное название группы!"),
+                md.text("Нельзя удалить единственное название группы!"),
                 parse_mode=ParseMode.MARKDOWN
             )
 
         db.delete_group_alias(conn, alias_id=group_alias.alias_id)
 
     await message.reply(
-        markdown.text(
-            "Алиас", markdown_decoration.code(alias_name),
-            "удалён из группы", markdown_decoration.code(group_name)
+        md.text(
+            "Алиас", md_style.code(alias_name),
+            "удалён из группы", md_style.code(group_name)
         ),
         parse_mode=ParseMode.MARKDOWN
     )
 
 
-@dp.message_handler(commands=['list_members'])
+@dp.message_handler(commands=['members'])
 async def handler_list_members(message: types.Message):
     await check_access(message, grant=Grant.READ_ACCESS)
     match = constraints.REGEX_CMD_GROUP.search(message.text)
     if not match:
         return await message.reply(
-            markdown.text(
-                markdown_decoration.bold("Пример вызова:"),
-                markdown_decoration.code("/list_members group"),
+            md.text(
+                md_style.bold("Пример вызова:"),
+                md_style.code("/members group"),
                 " ",
-                markdown_decoration.bold("Ограничения:"),
-                markdown.text("group:", constraints.MESSAGE_FOR_GROUP),
+                md_style.bold("Ограничения:"),
+                md.text("group:", constraints.MESSAGE_FOR_GROUP),
                 sep='\n'
             ),
             parse_mode=ParseMode.MARKDOWN
@@ -323,7 +352,7 @@ async def handler_list_members(message: types.Message):
         group = db.select_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
         if not group:
             return await message.reply(
-                markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
+                md.text('Группа', md_style.code(group_name), 'не найдена!'),
                 parse_mode=ParseMode.MARKDOWN
             )
         members = db.select_members(conn, group_id=group.group_id)
@@ -332,18 +361,18 @@ async def handler_list_members(message: types.Message):
     logging.info(f"members: {members}")
 
     if len(members) == 0:
-        text = markdown.text(
+        text = md.text(
             "В группе",
-            markdown_decoration.code(group_name),
+            md_style.code(group_name),
             "нет ни одного пользователя!",
         )
     else:
-        text = markdown.text(
-            markdown.text(
-                markdown_decoration.bold("Участники группы"),
-                markdown_decoration.code(group_name)
+        text = md.text(
+            md.text(
+                md_style.bold("Участники группы"),
+                md_style.code(group_name)
             ),
-            markdown_decoration.code("\n".join([f"- {x}" for x in members])),
+            md_style.code("\n".join([f"- {x}" for x in members])),
             sep='\n'
         )
 
@@ -356,13 +385,13 @@ async def handler_add_members(message: types.Message):
     match = constraints.REGEX_CMD_GROUP_MEMBERS.search(message.text)
     if not match:
         return await message.reply(
-            markdown.text(
-                markdown_decoration.bold("Пример вызова:"),
-                markdown_decoration.code("/add_members group username1 username2"),
+            md.text(
+                md_style.bold("Пример вызова:"),
+                md_style.code("/add_members group username1 username2"),
                 " ",
-                markdown_decoration.bold("Ограничения:"),
-                markdown.text("group:", constraints.MESSAGE_FOR_GROUP),
-                markdown.text("username:", constraints.MESSAGE_FOR_MEMBER),
+                md_style.bold("Ограничения:"),
+                md.text("group:", constraints.MESSAGE_FOR_GROUP),
+                md.text("username:", constraints.MESSAGE_FOR_MEMBER),
                 sep='\n'
             ),
             parse_mode=ParseMode.MARKDOWN
@@ -396,7 +425,7 @@ async def handler_add_members(message: types.Message):
         group = db.select_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
         if not group:
             return await message.reply(
-                markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
+                md.text('Группа', md_style.code(group_name), 'не найдена!'),
                 parse_mode=ParseMode.MARKDOWN
             )
         logging.info(f"group: {group}")
@@ -413,12 +442,12 @@ async def handler_add_members(message: types.Message):
             db.insert_member(conn, group_id=group.group_id, member=member)
 
     await message.reply(
-        markdown.text(
-            markdown.text(
+        md.text(
+            md.text(
                 "Пользователи добавленные в группу",
-                markdown_decoration.code(group_name),
+                md_style.code(group_name),
             ),
-            markdown_decoration.code("\n".join([
+            md_style.code("\n".join([
                 f"- {x}" for x in convert_members_to_names(all_members)
             ])),
             sep='\n'
@@ -433,13 +462,13 @@ async def handler_remove_members(message: types.Message):
     match = constraints.REGEX_CMD_GROUP_MEMBERS.search(message.text)
     if not match:
         return await message.reply(
-            markdown.text(
-                markdown_decoration.bold("Пример вызова:"),
-                markdown_decoration.code("/remove_members group username1 username2"),
+            md.text(
+                md_style.bold("Пример вызова:"),
+                md_style.code("/remove_members group username1 username2"),
                 " ",
-                markdown_decoration.bold("Ограничения:"),
-                markdown.text("group:", constraints.MESSAGE_FOR_GROUP),
-                markdown.text("username:", constraints.MESSAGE_FOR_MEMBER),
+                md_style.bold("Ограничения:"),
+                md.text("group:", constraints.MESSAGE_FOR_GROUP),
+                md.text("username:", constraints.MESSAGE_FOR_MEMBER),
                 sep='\n'
             ),
             parse_mode=ParseMode.MARKDOWN
@@ -452,7 +481,7 @@ async def handler_remove_members(message: types.Message):
         group = db.select_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
         if not group:
             return await message.reply(
-                markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
+                md.text('Группа', md_style.code(group_name), 'не найдена!'),
                 parse_mode=ParseMode.MARKDOWN
             )
         logging.info(f"group: {group}")
@@ -477,12 +506,12 @@ async def handler_remove_members(message: types.Message):
             db.delete_member(conn, group_id=group.group_id, member_name=member)
 
     await message.reply(
-        markdown.text(
-            markdown.text(
+        md.text(
+            md.text(
                 "Пользователи удалённые из группы",
-                markdown_decoration.code(group_name)
+                md_style.code(group_name)
             ),
-            markdown_decoration.code("\n".join([f"- {x}" for x in all_members])),
+            md_style.code("\n".join([f"- {x}" for x in all_members])),
             sep='\n'
         ),
         parse_mode=ParseMode.MARKDOWN
@@ -495,12 +524,12 @@ async def handler_call(message: types.Message):
     match = constraints.REGEX_CMD_GROUP_MESSAGE.search(message.text)
     if not match:
         return await message.reply(
-            markdown.text(
-                markdown_decoration.bold("Пример вызова:"),
-                markdown_decoration.code("/call group"),
+            md.text(
+                md_style.bold("Пример вызова:"),
+                md_style.code("/call group"),
                 " ",
-                markdown_decoration.bold("Ограничения:"),
-                markdown.text("group:", constraints.MESSAGE_FOR_GROUP),
+                md_style.bold("Ограничения:"),
+                md.text("group:", constraints.MESSAGE_FOR_GROUP),
                 sep='\n'
             ),
             parse_mode=ParseMode.MARKDOWN
@@ -511,7 +540,7 @@ async def handler_call(message: types.Message):
         group = db.select_group_by_alias_name(conn, chat_id=message.chat.id, alias_name=group_name)
         if not group:
             return await message.reply(
-                markdown.text('Группа', markdown_decoration.code(group_name), 'не найдена!'),
+                md.text('Группа', md_style.code(group_name), 'не найдена!'),
                 parse_mode=ParseMode.MARKDOWN
             )
         logging.info(f"group: {group}")
@@ -576,7 +605,7 @@ async def handler_xcall(message: types.Message):
         )
 
     await message.reply(
-        markdown_decoration.bold("Выберите группу"),
+        md_style.bold("Выберите группу"),
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=inline_keyboard
     )
@@ -712,13 +741,13 @@ def convert_members_to_mentions(members: List[Member]) -> List[str]:
     for member in members:
         if member.user_id is not None:
             result.append(
-                markdown_decoration.link(
+                md_style.link(
                     value=member.member_name,
                     link=f"tg://user?id={member.user_id}"
                 )
             )
         else:
-            result.append(markdown.escape_md(member.member_name))
+            result.append(md.escape_md(member.member_name))
     return result
 
 

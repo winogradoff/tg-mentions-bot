@@ -186,7 +186,7 @@ async def handler_add_group_alias(message: types.Message):
         return await message.reply(
             markdown.text(
                 markdown_decoration.bold("Пример вызова:"),
-                markdown_decoration.code("/add_group_aliases group alias"),
+                markdown_decoration.code("/add_alias group alias"),
                 " ",
                 markdown_decoration.bold("Ограничения:"),
                 markdown.text("group:", constraints.MESSAGE_FOR_GROUP),
@@ -246,7 +246,7 @@ async def handler_remove_group_alias(message: types.Message):
         return await message.reply(
             markdown.text(
                 markdown_decoration.bold("Пример вызова:"),
-                markdown_decoration.code("/remove_group_alias group alias"),
+                markdown_decoration.code("/remove_alias group alias"),
                 " ",
                 markdown_decoration.bold("Ограничения:"),
                 markdown.text("group:", constraints.MESSAGE_FOR_GROUP),

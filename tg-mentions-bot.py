@@ -1,6 +1,5 @@
 import logging
 import os
-from json import JSONDecodeError
 from typing import List, Dict
 
 import aiogram.types as types
@@ -577,10 +576,9 @@ async def handler_xcall(message: types.Message):
         InlineKeyboardButton(
             text="✖ Отмена ✖",
             callback_data=CallbackData(
-                callback_type=CallbackType.CANCEL,
-                chat_id=message.chat.id,
+                type=CallbackType.CANCEL,
                 user_id=message.from_user.id
-            ).to_json()
+            ).serialize()
         )
     )
 
@@ -596,11 +594,10 @@ async def handler_xcall(message: types.Message):
             InlineKeyboardButton(
                 text=f"{head}{tail}",
                 callback_data=CallbackData(
-                    callback_type=CallbackType.SELECT_GROUP,
-                    chat_id=message.chat.id,
+                    type=CallbackType.SELECT_GROUP,
                     user_id=message.from_user.id,
                     group_id=group_id
-                ).to_json()
+                ).serialize()
             )
         )
 
@@ -613,23 +610,21 @@ async def handler_xcall(message: types.Message):
 
 @dp.callback_query_handler(lambda c: len(c.data) > 0)
 async def process_callback_xcall(callback_query: types.CallbackQuery):
-    chat_id = callback_query.message.chat.id
     user_id = callback_query.from_user.id
 
     try:
-        callback_data = CallbackData.from_json(callback_query.data)
-    except JSONDecodeError:
-        logging.warning(f"Callback data deserialize error: data=[{callback_query.data}]")
+        callback_data = CallbackData.deserialize(callback_query.data)
+    except (KeyError, ValueError):
+        logging.warning(f"Callback data deserialize error: data=[{callback_query.data}]", exc_info=True)
         await bot.answer_callback_query(
             callback_query_id=callback_query.id,
             text="Что-то пошло не так!"
         )
         return await callback_query.message.delete()
 
-    if callback_data.chat_id != chat_id or callback_data.user_id != user_id:
+    if callback_data.user_id != user_id:
         logging.warning(
-            f"Wrong chat or user:"
-            f" chat_id=[{chat_id}],"
+            f"Wrong user:"
             f" user_id=[{user_id}],"
             f" callback_data={callback_data}"
         )
@@ -639,7 +634,7 @@ async def process_callback_xcall(callback_query: types.CallbackQuery):
             show_alert=True
         )
 
-    if callback_data.callback_type == CallbackType.CANCEL:
+    if callback_data.type == CallbackType.CANCEL:
         await callback_query.message.delete()
         return await bot.answer_callback_query(
             callback_query_id=callback_query.id,

@@ -1,7 +1,10 @@
-import json
+import base64
+import logging
 from dataclasses import dataclass
 from enum import Enum, auto, IntEnum, unique
 from typing import Optional
+
+import msgpack
 
 
 class Grant(Enum):
@@ -44,29 +47,43 @@ class CallbackType(IntEnum):
 
 @dataclass
 class CallbackData:
-    callback_type: CallbackType
-    chat_id: Optional[int] = None
+    type: CallbackType
     user_id: Optional[int] = None
     group_id: Optional[int] = None
 
-    def to_json(self) -> str:
-        return json.dumps(
-            {
-                "type": self.callback_type.value,
-                "chat": self.chat_id,
-                "user": self.user_id,
-                "group": self.group_id
-            }
+    _CALLBACK_FIELD_TYPE = 1
+    _CALLBACK_FIELD_USER = 2
+    _CALLBACK_FIELD_GROUP = 3
+
+    def serialize(self) -> str:
+        data: dict = {
+            self._CALLBACK_FIELD_TYPE: self.type.value,
+            self._CALLBACK_FIELD_USER: self.user_id,
+            self._CALLBACK_FIELD_GROUP: self.group_id
+        }
+        data = {key: value for key, value in data.items() if value}
+        data_bytes: bytes = msgpack.packb(data, use_bin_type=True)
+        b85_bytes: bytes = base64.b85encode(data_bytes)
+        result_str: str = b85_bytes.decode("ascii")
+        logging.debug(
+            f"data=[{data}],"
+            f" bytes: {len(data_bytes)},"
+            f" b85: {len(b85_bytes)},"
+            f" str: {len(result_str)}"
         )
+        return result_str
 
     @classmethod
-    def from_json(cls, data: str) -> 'CallbackData':
-        json_data = json.loads(data)
+    def deserialize(cls, s: str) -> 'CallbackData':
+        b85_bytes = s.encode("ascii")
+        data_bytes = base64.b85decode(b85_bytes)
+        data = msgpack.unpackb(data_bytes, raw=False, strict_map_key=False)
+        user_id = data.get(cls._CALLBACK_FIELD_USER)
+        group_id = data.get(cls._CALLBACK_FIELD_GROUP)
         return CallbackData(
-            callback_type=CallbackType(json_data["type"]),
-            chat_id=json_data.get("chat"),
-            user_id=json_data.get("user"),
-            group_id=json_data.get("group"),
+            type=CallbackType(int(data[cls._CALLBACK_FIELD_TYPE])),
+            user_id=int(user_id) if user_id else None,
+            group_id=int(group_id) if group_id else None,
         )
 
 

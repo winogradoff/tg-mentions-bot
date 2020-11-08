@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 from json import JSONDecodeError
@@ -555,13 +554,11 @@ async def handler_test(message: types.Message):
         inline_keyboard.add(
             InlineKeyboardButton(
                 text=f"{head}{tail}",
-                callback_data=serialize_callback_data(
-                    CallbackData(
-                        group_id=group_id,
-                        chat_id=message.chat.id,
-                        user_id=message.from_user.id
-                    )
-                )
+                callback_data=CallbackData(
+                    group_id=group_id,
+                    chat_id=message.chat.id,
+                    user_id=message.from_user.id
+                ).to_json()
             )
         )
 
@@ -578,7 +575,7 @@ async def process_callback_test(callback_query: types.CallbackQuery):
     user_id = callback_query.from_user.id
 
     try:
-        callback_data = deserialize_callback_data(callback_query.data)
+        callback_data = CallbackData.from_json(callback_query.data)
     except JSONDecodeError:
         logging.warning(f"Callback data deserialize error: data=[{callback_query.data}]")
         await bot.answer_callback_query(
@@ -703,25 +700,6 @@ def convert_members_to_mentions(members: List[Member]) -> List[str]:
         else:
             result.append(markdown.escape_md(member.member_name))
     return result
-
-
-def serialize_callback_data(data: CallbackData) -> str:
-    return json.dumps(
-        {
-            "group": data.group_id,
-            "chat": data.chat_id,
-            "user": data.user_id
-        }
-    )
-
-
-def deserialize_callback_data(data: str) -> CallbackData:
-    json_data = json.loads(data)
-    return CallbackData(
-        chat_id=json_data["chat"],
-        user_id=json_data["user"],
-        group_id=json_data["group"]
-    )
 
 
 async def shutdown(dispatcher: Dispatcher):

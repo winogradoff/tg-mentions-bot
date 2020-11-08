@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Optional
@@ -40,6 +41,24 @@ class CallbackData:
     group_id: int
     chat_id: int
     user_id: int
+
+    def to_json(self) -> str:
+        return json.dumps(
+            {
+                "group": self.group_id,
+                "chat": self.chat_id,
+                "user": self.user_id
+            }
+        )
+
+    @classmethod
+    def from_json(cls, data: str) -> 'CallbackData':
+        json_data = json.loads(data)
+        return CallbackData(
+            chat_id=json_data["chat"],
+            user_id=json_data["user"],
+            group_id=json_data["group"]
+        )
 
 
 class AuthorizationError(RuntimeError):

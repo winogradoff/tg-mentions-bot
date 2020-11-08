@@ -550,11 +550,11 @@ async def handler_call(message: types.Message):
 
     mentions = convert_members_to_mentions(members)
 
-    text = " ".join(mentions)
-    if message.reply_to_message:
-        await message.reply_to_message.reply(text, parse_mode=ParseMode.MARKDOWN)
-    else:
-        await message.reply(text, parse_mode=ParseMode.MARKDOWN)
+    reply_to_message = message.reply_to_message if message.reply_to_message else message
+    await reply_to_message.reply(
+        " ".join(mentions),
+        parse_mode=ParseMode.MARKDOWN
+    )
 
 
 @dp.message_handler(commands=['xcall'])
@@ -601,7 +601,8 @@ async def handler_xcall(message: types.Message):
             )
         )
 
-    await message.reply(
+    reply_to_message = message.reply_to_message if message.reply_to_message else message
+    await reply_to_message.reply(
         md_style.bold("Выберите группу"),
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=inline_keyboard

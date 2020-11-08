@@ -35,6 +35,13 @@ class Member:
     user_id: Optional[int] = None
 
 
+@dataclass
+class CallbackData:
+    group_id: int
+    chat_id: int
+    user_id: int
+
+
 class AuthorizationError(RuntimeError):
     pass
 

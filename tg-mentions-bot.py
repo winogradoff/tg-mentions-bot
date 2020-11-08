@@ -1,19 +1,21 @@
+import json
 import logging
 import os
+from json import JSONDecodeError
 from typing import List, Dict
 
 import aiogram.types as types
 from aiogram import Bot, Dispatcher
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
-from aiogram.types import ParseMode, MessageEntityType, ChatMember, ChatType
+from aiogram.types import ParseMode, MessageEntityType, ChatMember, ChatType, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils import markdown, executor
 from aiogram.utils.exceptions import MessageNotModified
 from aiogram.utils.text_decorations import markdown_decoration
 
 import constraints
 import database as db
-from models import Grant, GroupAlias, Member, AuthorizationError, IllegalStateError
+from models import Grant, GroupAlias, Member, AuthorizationError, IllegalStateError, CallbackData
 
 logging.basicConfig(
     format=u'%(filename)+13s [ LINE:%(lineno)-4s] %(levelname)-8s [%(asctime)s] %(message)s',
@@ -527,6 +529,90 @@ async def handler_call(message: types.Message):
         await message.reply(text, parse_mode=ParseMode.MARKDOWN)
 
 
+@dp.message_handler(commands=['test'])
+async def handler_test(message: types.Message):
+    await check_access(message, grant=Grant.READ_ACCESS)
+
+    with db.get_connection() as conn:
+        aliases: List[GroupAlias] = db.select_group_aliases_by_chat_id(conn, chat_id=message.chat.id)
+        if len(aliases) == 0:
+            return await message.reply("Нет ни одной группы.", parse_mode=ParseMode.MARKDOWN)
+
+        aliases_lookup: Dict[int, List[GroupAlias]] = {}
+        for a in aliases:
+            aliases_lookup.setdefault(a.group_id, []).append(a)
+
+    inline_keyboard = InlineKeyboardMarkup()
+
+    groups_for_print = []
+    for group_id in sorted({x.group_id for x in aliases}):
+        group_aliases = sorted(aliases_lookup.get(group_id, []), key=lambda x: x.alias_id)
+        group_aliases = [x.alias_name for x in group_aliases]
+        head, *tail = group_aliases
+        tail = f" (синонимы: {', '.join(tail)})" if len(tail) > 0 else ""
+        groups_for_print.append(f"{head}{tail}")
+
+        inline_keyboard.add(
+            InlineKeyboardButton(
+                text=f"{head}{tail}",
+                callback_data=serialize_callback_data(
+                    CallbackData(
+                        group_id=group_id,
+                        chat_id=message.chat.id,
+                        user_id=message.from_user.id
+                    )
+                )
+            )
+        )
+
+    await message.reply(
+        markdown_decoration.bold("Выбери группу"),
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=inline_keyboard
+    )
+
+
+@dp.callback_query_handler(lambda c: len(c.data) > 0)
+async def process_callback_test(callback_query: types.CallbackQuery):
+    chat_id = callback_query.message.chat.id
+    user_id = callback_query.from_user.id
+
+    try:
+        callback_data = deserialize_callback_data(callback_query.data)
+    except JSONDecodeError:
+        logging.warning(f"Callback data deserialize error: data=[{callback_query.data}]")
+        await bot.answer_callback_query(
+            callback_query_id=callback_query.id,
+            text="Что-то пошло не так!"
+        )
+        return await callback_query.message.delete()
+
+    if callback_data.chat_id != chat_id or callback_data.user_id != user_id:
+        logging.warning(
+            f"Wrong chat or user:"
+            f" chat_id=[{chat_id}],"
+            f" user_id=[{user_id}],"
+            f" callback_data={callback_data}")
+        return await bot.answer_callback_query(
+            callback_query_id=callback_query.id,
+            text="Это чужой диалог!"
+        )
+
+    with db.get_connection() as conn:
+        members = db.select_members(conn, group_id=callback_data.group_id)
+
+    if len(members) == 0:
+        return await bot.answer_callback_query(
+            callback_query_id=callback_query.id,
+            text="Эта группа пуста! Выберите другую."
+        )
+
+    await bot.answer_callback_query(callback_query.id)
+
+    mentions = convert_members_to_mentions(members)
+    await callback_query.message.edit_text(" ".join(mentions), parse_mode=ParseMode.MARKDOWN)
+
+
 @dp.message_handler(commands=['enable_anarchy'])
 async def handler_enable_anarchy(message: types.Message):
     await check_access(message, Grant.CHANGE_CHAT_SETTINGS)
@@ -552,7 +638,9 @@ async def handler_error(update, error):
     elif isinstance(error, AuthorizationError):
         await update.message.reply("Действие запрещено! Обратитесь к администратору группы.")
     else:
-        await update.message.reply("Что-то пошло не так!")
+        logging.error("Unexpected error", error)
+        if update.message:
+            await update.message.reply("Что-то пошло не так!")
 
 
 async def check_access(message: types.Message, grant: Grant):
@@ -612,6 +700,25 @@ def convert_members_to_mentions(members: List[Member]) -> List[str]:
         else:
             result.append(markdown.escape_md(member.member_name))
     return result
+
+
+def serialize_callback_data(data: CallbackData) -> str:
+    return json.dumps(
+        {
+            "group": data.group_id,
+            "chat": data.chat_id,
+            "user": data.user_id
+        }
+    )
+
+
+def deserialize_callback_data(data: str) -> CallbackData:
+    json_data = json.loads(data)
+    return CallbackData(
+        chat_id=json_data["chat"],
+        user_id=json_data["user"],
+        group_id=json_data["group"]
+    )
 
 
 async def shutdown(dispatcher: Dispatcher):

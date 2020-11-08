@@ -592,10 +592,12 @@ async def process_callback_test(callback_query: types.CallbackQuery):
             f"Wrong chat or user:"
             f" chat_id=[{chat_id}],"
             f" user_id=[{user_id}],"
-            f" callback_data={callback_data}")
+            f" callback_data={callback_data}"
+        )
         return await bot.answer_callback_query(
             callback_query_id=callback_query.id,
-            text="Это чужой диалог!"
+            text="Это чужой диалог!",
+            show_alert=True
         )
 
     with db.get_connection() as conn:
@@ -604,7 +606,8 @@ async def process_callback_test(callback_query: types.CallbackQuery):
     if len(members) == 0:
         return await bot.answer_callback_query(
             callback_query_id=callback_query.id,
-            text="Эта группа пуста! Выберите другую."
+            text="Эта группа пуста! Выберите другую.",
+            show_alert=True
         )
 
     await bot.answer_callback_query(callback_query.id)

@@ -664,7 +664,7 @@ async def handler_enable_anarchy(message: types.Message):
     with db.get_connection() as conn:
         db.insert_chat(conn, chat_id=message.chat.id)
         db.set_chat_anarchy(conn, chat_id=message.chat.id, is_anarchy_enabled=True)
-    await message.reply("Анархия включена. Только администраторы и владелец чата могут настраивать бота.")
+    await message.reply("Анархия включена. Все пользователи могут настраивать бота.")
 
 
 @dp.message_handler(commands=['disable_anarchy'])
@@ -673,7 +673,7 @@ async def handler_disable_anarchy(message: types.Message):
     with db.get_connection() as conn:
         db.insert_chat(conn, chat_id=message.chat.id)
         db.set_chat_anarchy(conn, chat_id=message.chat.id, is_anarchy_enabled=False)
-    await message.reply("Анархия выключена. Все пользователи могут настраивать бота.")
+    await message.reply("Анархия выключена. Только администраторы и владелец чата могут настраивать бота.")
 
 
 @dp.errors_handler()

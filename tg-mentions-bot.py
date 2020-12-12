@@ -6,7 +6,8 @@ import aiogram.types as types
 from aiogram import Bot, Dispatcher
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
-from aiogram.types import ParseMode, MessageEntityType, ChatMember, ChatType, InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import ParseMode, MessageEntityType, ChatMember, ChatType, InlineKeyboardButton, \
+    InlineKeyboardMarkup, BotCommand
 from aiogram.utils import markdown as md, executor
 from aiogram.utils.exceptions import MessageNotModified
 from aiogram.utils.text_decorations import markdown_decoration as md_style
@@ -20,33 +21,41 @@ logging.basicConfig(
     level=logging.DEBUG
 )
 
+COMMON_COMMANDS = {
+    'help': 'справка по всем командам бота',
+    'groups': 'показать список групп',
+    'members': 'показать список пользователей в группе',
+    'call': 'позвать пользователей',
+    'xcall': 'позвать пользователей (inline-диалог)'
+}
+
+ADMIN_COMMANDS = {
+    'add_group': 'добавление группы',
+    'remove_group': 'удаление группы',
+    'add_alias': 'добавление алиаса группы',
+    'remove_alias': 'удаление алиаса группы',
+    'add_members': 'добавление пользователей в группу',
+    'remove_members': 'удаление пользователей из группы',
+    'enable_anarchy': 'всем доступны настройки',
+    'disable_anarchy': 'только админам доступны настройки',
+}
+
 bot = Bot(token=os.getenv("TOKEN"))
 dp = Dispatcher(bot=bot, storage=MemoryStorage())
 dp.middleware.setup(LoggingMiddleware())
 
 
+async def handler_throttled(message: types.Message, **kwargs):
+    await message.answer(
+        text=md.text(f"{message.from_user.get_mention()}, тебя слишком много! Повтори позже."),
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+
 @dp.message_handler(commands=['start', 'help'])
+@dp.throttled(handler_throttled, rate=5)
 async def handler_help(message: types.Message):
     await check_access(message, grant=Grant.READ_ACCESS)
-
-    common_commands = {
-        'help': 'справка по всем командам бота',
-        'groups': 'показать список групп',
-        'members': 'показать список пользователей в группе',
-        'call': 'позвать пользователей',
-        'xcall': 'позвать пользователей (inline-диалог)'
-    }
-
-    admin_commands = {
-        'add_group': 'добавление группы',
-        'remove_group': 'удаление группы',
-        'add_alias': 'добавление алиаса группы',
-        'remove_alias': 'удаление алиаса группы',
-        'add_members': 'добавление пользователей в группу',
-        'remove_members': 'удаление пользователей из группы',
-        'enable_anarchy': 'всем доступны настройки',
-        'disable_anarchy': 'только админам доступны настройки',
-    }
 
     def prepare_commands(commands: Dict[str, str]) -> List[str]:
         return [
@@ -71,10 +80,10 @@ async def handler_help(message: types.Message):
             md_style.code("@user1 @user2 @user3"),
             "",
             md_style.bold("Общие команды:"),
-            *prepare_commands(common_commands),
+            *prepare_commands(COMMON_COMMANDS),
             "",
             md_style.bold("Административные команды:"),
-            *prepare_commands(admin_commands),
+            *prepare_commands(ADMIN_COMMANDS),
             sep='\n'
         ),
         parse_mode=ParseMode.MARKDOWN
@@ -82,6 +91,7 @@ async def handler_help(message: types.Message):
 
 
 @dp.message_handler(commands=['groups'])
+@dp.throttled(handler_throttled, rate=5)
 async def handler_list_groups(message: types.Message):
     await check_access(message, grant=Grant.READ_ACCESS)
 
@@ -113,6 +123,7 @@ async def handler_list_groups(message: types.Message):
 
 
 @dp.message_handler(commands=['add_group'])
+@dp.throttled(handler_throttled, rate=5)
 async def handler_add_group(message: types.Message):
     await check_access(message, Grant.WRITE_ACCESS)
     match = constraints.REGEX_CMD_GROUP.search(message.text)
@@ -163,6 +174,7 @@ async def handler_add_group(message: types.Message):
 
 
 @dp.message_handler(commands=['remove_group'])
+@dp.throttled(handler_throttled, rate=5)
 async def handler_remove_group(message: types.Message):
     await check_access(message, Grant.WRITE_ACCESS)
     match = constraints.REGEX_CMD_GROUP.search(message.text)
@@ -208,6 +220,7 @@ async def handler_remove_group(message: types.Message):
 
 
 @dp.message_handler(commands=['add_group_alias', 'add_alias'])
+@dp.throttled(handler_throttled, rate=5)
 async def handler_add_group_alias(message: types.Message):
     await check_access(message, Grant.WRITE_ACCESS)
     match = constraints.REGEX_CMD_GROUP_ALIAS.search(message.text)
@@ -268,6 +281,7 @@ async def handler_add_group_alias(message: types.Message):
 
 
 @dp.message_handler(commands=['remove_group_alias', 'remove_alias'])
+@dp.throttled(handler_throttled, rate=5)
 async def handler_remove_group_alias(message: types.Message):
     await check_access(message, Grant.WRITE_ACCESS)
     match = constraints.REGEX_CMD_GROUP_ALIAS.search(message.text)
@@ -330,6 +344,7 @@ async def handler_remove_group_alias(message: types.Message):
 
 
 @dp.message_handler(commands=['members'])
+@dp.throttled(handler_throttled, rate=5)
 async def handler_list_members(message: types.Message):
     await check_access(message, grant=Grant.READ_ACCESS)
     match = constraints.REGEX_CMD_GROUP.search(message.text)
@@ -379,6 +394,7 @@ async def handler_list_members(message: types.Message):
 
 
 @dp.message_handler(commands=['add_members', 'add_member'])
+@dp.throttled(handler_throttled, rate=5)
 async def handler_add_members(message: types.Message):
     await check_access(message, Grant.WRITE_ACCESS)
     match = constraints.REGEX_CMD_GROUP_MEMBERS.search(message.text)
@@ -456,6 +472,7 @@ async def handler_add_members(message: types.Message):
 
 
 @dp.message_handler(commands=['remove_members', 'remove_member'])
+@dp.throttled(handler_throttled, rate=5)
 async def handler_remove_members(message: types.Message):
     await check_access(message, Grant.WRITE_ACCESS)
     match = constraints.REGEX_CMD_GROUP_MEMBERS.search(message.text)
@@ -518,6 +535,7 @@ async def handler_remove_members(message: types.Message):
 
 
 @dp.message_handler(commands=['call'])
+@dp.throttled(handler_throttled, rate=5)
 async def handler_call(message: types.Message):
     await check_access(message, grant=Grant.READ_ACCESS)
     match = constraints.REGEX_CMD_GROUP_MESSAGE.search(message.text)
@@ -554,6 +572,7 @@ async def handler_call(message: types.Message):
 
 
 @dp.message_handler(commands=['xcall'])
+@dp.throttled(handler_throttled, rate=5)
 async def handler_xcall(message: types.Message):
     await check_access(message, grant=Grant.READ_ACCESS)
 
@@ -654,6 +673,7 @@ async def process_callback_xcall(callback_query: types.CallbackQuery):
 
 
 @dp.message_handler(commands=['enable_anarchy'])
+@dp.throttled(handler_throttled, rate=5)
 async def handler_enable_anarchy(message: types.Message):
     await check_access(message, Grant.CHANGE_CHAT_SETTINGS)
     with db.get_connection() as conn:
@@ -663,6 +683,7 @@ async def handler_enable_anarchy(message: types.Message):
 
 
 @dp.message_handler(commands=['disable_anarchy'])
+@dp.throttled(handler_throttled, rate=5)
 async def handler_disable_anarchy(message: types.Message):
     await check_access(message, Grant.CHANGE_CHAT_SETTINGS)
     with db.get_connection() as conn:
@@ -742,7 +763,17 @@ def convert_members_to_mentions(members: List[Member]) -> List[str]:
     return result
 
 
-async def shutdown(dispatcher: Dispatcher):
+async def bot_startup(_: Dispatcher):
+    logging.info("Setup the list of the bot's commands...")
+    await bot.set_my_commands(
+        [
+            BotCommand(command=command, description=description)
+            for command, description in {**COMMON_COMMANDS, **ADMIN_COMMANDS}.items()
+        ]
+    )
+
+
+async def bot_shutdown(dispatcher: Dispatcher):
     await dispatcher.storage.close()
     await dispatcher.storage.wait_closed()
 
@@ -752,7 +783,7 @@ def main():
         db.create_pool()
         with db.get_connection() as conn:
             db.create_schema(conn)
-        executor.start_polling(dp, on_shutdown=shutdown)
+        executor.start_polling(dp, on_startup=bot_startup, on_shutdown=bot_shutdown)
     finally:
         db.close_pool()
 

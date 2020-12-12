@@ -1,5 +1,4 @@
 import logging
-import os
 from typing import List, Dict
 
 import aiogram.types as types
@@ -10,10 +9,12 @@ from aiogram.types import ParseMode, MessageEntityType, ChatMember, ChatType, In
     InlineKeyboardMarkup, BotCommand
 from aiogram.utils import markdown as md, executor
 from aiogram.utils.exceptions import MessageNotModified
+from aiogram.utils.executor import start_webhook
 from aiogram.utils.text_decorations import markdown_decoration as md_style
 
 import constraints
 import database as db
+import settings
 from models import Grant, GroupAlias, Member, AuthorizationError, IllegalStateError, CallbackData, CallbackType
 
 logging.basicConfig(
@@ -40,7 +41,7 @@ ADMIN_COMMANDS = {
     'disable_anarchy': 'только админам доступны настройки',
 }
 
-bot = Bot(token=os.getenv("TOKEN"))
+bot = Bot(token=settings.BOT_TOKEN)
 dp = Dispatcher(bot=bot, storage=MemoryStorage())
 dp.middleware.setup(LoggingMiddleware())
 
@@ -764,16 +765,18 @@ def convert_members_to_mentions(members: List[Member]) -> List[str]:
 
 
 async def bot_startup(_: Dispatcher):
-    logging.info("Setup the list of the bot's commands...")
     await bot.set_my_commands(
         [
             BotCommand(command=command, description=description)
             for command, description in {**COMMON_COMMANDS, **ADMIN_COMMANDS}.items()
         ]
     )
+    if settings.WEBHOOK_ENABLED:
+        await bot.set_webhook(settings.WEBHOOK_URL)
 
 
 async def bot_shutdown(dispatcher: Dispatcher):
+    await bot.delete_webhook()
     await dispatcher.storage.close()
     await dispatcher.storage.wait_closed()
 
@@ -783,7 +786,18 @@ def main():
         db.create_pool()
         with db.get_connection() as conn:
             db.create_schema(conn)
-        executor.start_polling(dp, on_startup=bot_startup, on_shutdown=bot_shutdown)
+
+        if settings.WEBHOOK_ENABLED:
+            start_webhook(
+                dispatcher=dp,
+                webhook_path=settings.WEBHOOK_PATH,
+                skip_updates=True,
+                on_startup=bot_startup,
+                host=settings.WEBAPP_HOST,
+                port=settings.WEBAPP_PORT,
+            )
+        else:
+            executor.start_polling(dp, on_startup=bot_startup, on_shutdown=bot_shutdown)
     finally:
         db.close_pool()
 

@@ -46,15 +46,7 @@ dp = Dispatcher(bot=bot, storage=MemoryStorage())
 dp.middleware.setup(LoggingMiddleware())
 
 
-async def handler_throttled(message: types.Message, **kwargs):
-    await message.answer(
-        text=md.text(f"{message.from_user.get_mention()}, тебя слишком много! Повтори позже."),
-        parse_mode=ParseMode.MARKDOWN
-    )
-
-
 @dp.message_handler(commands=['start', 'help'])
-@dp.throttled(handler_throttled, rate=5)
 async def handler_help(message: types.Message):
     await check_access(message, grant=Grant.READ_ACCESS)
 
@@ -92,7 +84,6 @@ async def handler_help(message: types.Message):
 
 
 @dp.message_handler(commands=['groups'])
-@dp.throttled(handler_throttled, rate=5)
 async def handler_list_groups(message: types.Message):
     await check_access(message, grant=Grant.READ_ACCESS)
 
@@ -124,7 +115,6 @@ async def handler_list_groups(message: types.Message):
 
 
 @dp.message_handler(commands=['add_group'])
-@dp.throttled(handler_throttled, rate=5)
 async def handler_add_group(message: types.Message):
     await check_access(message, Grant.WRITE_ACCESS)
     match = constraints.REGEX_CMD_GROUP.search(message.text)
@@ -175,7 +165,6 @@ async def handler_add_group(message: types.Message):
 
 
 @dp.message_handler(commands=['remove_group'])
-@dp.throttled(handler_throttled, rate=5)
 async def handler_remove_group(message: types.Message):
     await check_access(message, Grant.WRITE_ACCESS)
     match = constraints.REGEX_CMD_GROUP.search(message.text)
@@ -221,7 +210,6 @@ async def handler_remove_group(message: types.Message):
 
 
 @dp.message_handler(commands=['add_group_alias', 'add_alias'])
-@dp.throttled(handler_throttled, rate=5)
 async def handler_add_group_alias(message: types.Message):
     await check_access(message, Grant.WRITE_ACCESS)
     match = constraints.REGEX_CMD_GROUP_ALIAS.search(message.text)
@@ -282,7 +270,6 @@ async def handler_add_group_alias(message: types.Message):
 
 
 @dp.message_handler(commands=['remove_group_alias', 'remove_alias'])
-@dp.throttled(handler_throttled, rate=5)
 async def handler_remove_group_alias(message: types.Message):
     await check_access(message, Grant.WRITE_ACCESS)
     match = constraints.REGEX_CMD_GROUP_ALIAS.search(message.text)
@@ -345,7 +332,6 @@ async def handler_remove_group_alias(message: types.Message):
 
 
 @dp.message_handler(commands=['members'])
-@dp.throttled(handler_throttled, rate=5)
 async def handler_list_members(message: types.Message):
     await check_access(message, grant=Grant.READ_ACCESS)
     match = constraints.REGEX_CMD_GROUP.search(message.text)
@@ -395,7 +381,6 @@ async def handler_list_members(message: types.Message):
 
 
 @dp.message_handler(commands=['add_members', 'add_member'])
-@dp.throttled(handler_throttled, rate=5)
 async def handler_add_members(message: types.Message):
     await check_access(message, Grant.WRITE_ACCESS)
     match = constraints.REGEX_CMD_GROUP_MEMBERS.search(message.text)
@@ -473,7 +458,6 @@ async def handler_add_members(message: types.Message):
 
 
 @dp.message_handler(commands=['remove_members', 'remove_member'])
-@dp.throttled(handler_throttled, rate=5)
 async def handler_remove_members(message: types.Message):
     await check_access(message, Grant.WRITE_ACCESS)
     match = constraints.REGEX_CMD_GROUP_MEMBERS.search(message.text)
@@ -536,7 +520,6 @@ async def handler_remove_members(message: types.Message):
 
 
 @dp.message_handler(commands=['call'])
-@dp.throttled(handler_throttled, rate=5)
 async def handler_call(message: types.Message):
     await check_access(message, grant=Grant.READ_ACCESS)
     match = constraints.REGEX_CMD_GROUP_MESSAGE.search(message.text)
@@ -573,7 +556,6 @@ async def handler_call(message: types.Message):
 
 
 @dp.message_handler(commands=['xcall'])
-@dp.throttled(handler_throttled, rate=5)
 async def handler_xcall(message: types.Message):
     await check_access(message, grant=Grant.READ_ACCESS)
 
@@ -674,7 +656,6 @@ async def process_callback_xcall(callback_query: types.CallbackQuery):
 
 
 @dp.message_handler(commands=['enable_anarchy'])
-@dp.throttled(handler_throttled, rate=5)
 async def handler_enable_anarchy(message: types.Message):
     await check_access(message, Grant.CHANGE_CHAT_SETTINGS)
     with db.get_connection() as conn:
@@ -684,7 +665,6 @@ async def handler_enable_anarchy(message: types.Message):
 
 
 @dp.message_handler(commands=['disable_anarchy'])
-@dp.throttled(handler_throttled, rate=5)
 async def handler_disable_anarchy(message: types.Message):
     await check_access(message, Grant.CHANGE_CHAT_SETTINGS)
     with db.get_connection() as conn:

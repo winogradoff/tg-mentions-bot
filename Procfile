@@ -1,1 +1,1 @@
-web: python tg-mentions-bot.py
+worker: python tg-mentions-bot.py

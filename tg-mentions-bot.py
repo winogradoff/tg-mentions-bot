@@ -136,7 +136,12 @@ async def handler_add_group(message: types.Message):
         return await message.reply('Слишком длинное название группы!')
 
     with db.get_connection() as conn:
-        db.insert_chat(conn, chat_id=message.chat.id)
+        db.insert_chat(
+            conn,
+            chat_id=message.chat.id,
+            chat_title=message.chat.title,
+            chat_username=message.chat.username
+        )
         db.select_chat_for_update(conn, chat_id=message.chat.id)
 
         existing_groups: List[GroupAlias] = db.select_group_aliases_by_chat_id(conn, chat_id=message.chat.id)
@@ -659,7 +664,12 @@ async def process_callback_xcall(callback_query: types.CallbackQuery):
 async def handler_enable_anarchy(message: types.Message):
     await check_access(message, Grant.CHANGE_CHAT_SETTINGS)
     with db.get_connection() as conn:
-        db.insert_chat(conn, chat_id=message.chat.id)
+        db.insert_chat(
+            conn,
+            chat_id=message.chat.id,
+            chat_title=message.chat.title,
+            chat_username=message.chat.username
+        )
         db.set_chat_anarchy(conn, chat_id=message.chat.id, is_anarchy_enabled=True)
     await message.reply("Анархия включена. Все пользователи могут настраивать бота.")
 
@@ -668,7 +678,12 @@ async def handler_enable_anarchy(message: types.Message):
 async def handler_disable_anarchy(message: types.Message):
     await check_access(message, Grant.CHANGE_CHAT_SETTINGS)
     with db.get_connection() as conn:
-        db.insert_chat(conn, chat_id=message.chat.id)
+        db.insert_chat(
+            conn,
+            chat_id=message.chat.id,
+            chat_title=message.chat.title,
+            chat_username=message.chat.username
+        )
         db.set_chat_anarchy(conn, chat_id=message.chat.id, is_anarchy_enabled=False)
     await message.reply("Анархия выключена. Только администраторы и владелец чата могут настраивать бота.")
 

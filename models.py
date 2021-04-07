@@ -16,6 +16,8 @@ class Grant(Enum):
 @dataclass
 class Chat:
     chat_id: int
+    chat_title: Optional[str]
+    chat_username: Optional[str]
     is_anarchy_enabled: bool
 
 

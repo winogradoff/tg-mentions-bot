@@ -73,6 +73,8 @@ def create_schema(connection: DictConnection):
                 create table if not exists chat
                 (
                     chat_id            bigint not null primary key,
+                    chat_title         varchar(300),
+                    chat_username      varchar(300),
                     is_anarchy_enabled bool not null default false
                 );
     
@@ -113,7 +115,7 @@ def select_chat(connection: DictConnection, chat_id: int) -> Optional[Chat]:
     logging.info(f"DB: selecting chat: chat_id=[{chat_id}]")
     with get_cursor(connection) as cursor:
         cursor.execute(
-            "select chat_id, is_anarchy_enabled"
+            "select chat_id, chat_title, chat_username, is_anarchy_enabled"
             " from chat"
             " where chat_id = %(chat_id)s",
             {"chat_id": chat_id}
@@ -121,7 +123,12 @@ def select_chat(connection: DictConnection, chat_id: int) -> Optional[Chat]:
         row = cursor.fetchone()
         if not row:
             return None
-        return Chat(chat_id=row["chat_id"], is_anarchy_enabled=row["is_anarchy_enabled"])
+        return Chat(
+            chat_id=row["chat_id"],
+            chat_title=row["chat_title"],
+            chat_username=row["chat_username"],
+            is_anarchy_enabled=row["is_anarchy_enabled"]
+        )
 
 
 def select_chat_for_update(connection: DictConnection, chat_id: int):
@@ -170,13 +177,18 @@ def select_members(connection: DictConnection, group_id: int) -> List[Member]:
         ]
 
 
-def insert_chat(connection: DictConnection, chat_id: int):
-    logging.info(f"DB: inserting chat: chat_id=[{chat_id}]")
+def insert_chat(connection: DictConnection, chat_id: int, chat_title: Optional[str], chat_username: Optional[str]):
+    logging.info(f"DB: inserting chat:"
+                 f" chat_id=[{chat_id}],"
+                 f" chat_title=[{chat_title}],"
+                 f" chat_username=[{chat_username}]"
+                 )
     with get_cursor(connection) as cursor:
         cursor.execute(
-            "insert into chat (chat_id)"
-            " values (%(chat_id)s) on conflict do nothing",
-            {"chat_id": chat_id}
+            "insert into chat (chat_id, chat_title, chat_username)"
+            " values (%(chat_id)s, %(chat_title)s, %(chat_username)s)"
+            " on conflict(chat_id) do update set chat_title=%(chat_title)s, chat_username=%(chat_username)s",
+            {"chat_id": chat_id, "chat_title": chat_title, "chat_username": chat_username}
         )
 
 

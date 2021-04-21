@@ -1,10 +1,12 @@
 import logging
-from typing import List, Dict
+from typing import List, Dict, Iterable
 
 import aiogram.types as types
 from aiogram import Bot, Dispatcher
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
+from aiogram.dispatcher import filters
+from aiogram.dispatcher.filters import Filter
 from aiogram.types import ParseMode, MessageEntityType, ChatMember, ChatType, InlineKeyboardButton, \
     InlineKeyboardMarkup, BotCommand
 from aiogram.utils import markdown as md, executor
@@ -46,7 +48,17 @@ dp = Dispatcher(bot=bot, storage=MemoryStorage())
 dp.middleware.setup(LoggingMiddleware())
 
 
-@dp.message_handler(commands=['start', 'help'])
+def custom_filters(
+        commands: Iterable[str],
+        is_forwarded: bool = False
+) -> Iterable[Filter]:
+    return [
+        filters.Command(commands=commands),
+        filters.ForwardedMessageFilter(is_forwarded=is_forwarded)
+    ]
+
+
+@dp.message_handler(*custom_filters(commands=['start', 'help']))
 async def handler_help(message: types.Message):
     await check_access(message, grant=Grant.READ_ACCESS)
 
@@ -83,7 +95,7 @@ async def handler_help(message: types.Message):
     )
 
 
-@dp.message_handler(commands=['groups'])
+@dp.message_handler(*custom_filters(commands=['groups']))
 async def handler_list_groups(message: types.Message):
     await check_access(message, grant=Grant.READ_ACCESS)
 
@@ -114,7 +126,7 @@ async def handler_list_groups(message: types.Message):
     )
 
 
-@dp.message_handler(commands=['add_group'])
+@dp.message_handler(*custom_filters(commands=['add_group']))
 async def handler_add_group(message: types.Message):
     await check_access(message, Grant.WRITE_ACCESS)
     match = constraints.REGEX_CMD_GROUP.search(message.text)
@@ -169,7 +181,7 @@ async def handler_add_group(message: types.Message):
     )
 
 
-@dp.message_handler(commands=['remove_group'])
+@dp.message_handler(*custom_filters(commands=['remove_group']))
 async def handler_remove_group(message: types.Message):
     await check_access(message, Grant.WRITE_ACCESS)
     match = constraints.REGEX_CMD_GROUP.search(message.text)
@@ -214,7 +226,7 @@ async def handler_remove_group(message: types.Message):
     )
 
 
-@dp.message_handler(commands=['add_group_alias', 'add_alias'])
+@dp.message_handler(*custom_filters(commands=['add_group_alias', 'add_alias']))
 async def handler_add_group_alias(message: types.Message):
     await check_access(message, Grant.WRITE_ACCESS)
     match = constraints.REGEX_CMD_GROUP_ALIAS.search(message.text)
@@ -274,7 +286,7 @@ async def handler_add_group_alias(message: types.Message):
     )
 
 
-@dp.message_handler(commands=['remove_group_alias', 'remove_alias'])
+@dp.message_handler(*custom_filters(commands=['remove_group_alias', 'remove_alias']))
 async def handler_remove_group_alias(message: types.Message):
     await check_access(message, Grant.WRITE_ACCESS)
     match = constraints.REGEX_CMD_GROUP_ALIAS.search(message.text)
@@ -336,7 +348,7 @@ async def handler_remove_group_alias(message: types.Message):
     )
 
 
-@dp.message_handler(commands=['members'])
+@dp.message_handler(*custom_filters(commands=['members']))
 async def handler_list_members(message: types.Message):
     await check_access(message, grant=Grant.READ_ACCESS)
     match = constraints.REGEX_CMD_GROUP.search(message.text)
@@ -385,7 +397,7 @@ async def handler_list_members(message: types.Message):
     await message.reply(text, parse_mode=ParseMode.MARKDOWN)
 
 
-@dp.message_handler(commands=['add_members', 'add_member'])
+@dp.message_handler(*custom_filters(commands=['add_members', 'add_member']))
 async def handler_add_members(message: types.Message):
     await check_access(message, Grant.WRITE_ACCESS)
     match = constraints.REGEX_CMD_GROUP_MEMBERS.search(message.text)
@@ -462,7 +474,7 @@ async def handler_add_members(message: types.Message):
     )
 
 
-@dp.message_handler(commands=['remove_members', 'remove_member'])
+@dp.message_handler(*custom_filters(commands=['remove_members', 'remove_member']))
 async def handler_remove_members(message: types.Message):
     await check_access(message, Grant.WRITE_ACCESS)
     match = constraints.REGEX_CMD_GROUP_MEMBERS.search(message.text)
@@ -524,7 +536,7 @@ async def handler_remove_members(message: types.Message):
     )
 
 
-@dp.message_handler(commands=['call'])
+@dp.message_handler(*custom_filters(commands=["call"]))
 async def handler_call(message: types.Message):
     await check_access(message, grant=Grant.READ_ACCESS)
     match = constraints.REGEX_CMD_GROUP_MESSAGE.search(message.text)
@@ -560,7 +572,7 @@ async def handler_call(message: types.Message):
     await message.reply(" ".join(mentions), parse_mode=ParseMode.MARKDOWN)
 
 
-@dp.message_handler(commands=['xcall'])
+@dp.message_handler(*custom_filters(commands=['xcall']))
 async def handler_xcall(message: types.Message):
     await check_access(message, grant=Grant.READ_ACCESS)
 
@@ -660,7 +672,7 @@ async def process_callback_xcall(callback_query: types.CallbackQuery):
     await callback_query.message.edit_text(" ".join(mentions), parse_mode=ParseMode.MARKDOWN)
 
 
-@dp.message_handler(commands=['enable_anarchy'])
+@dp.message_handler(*custom_filters(commands=['enable_anarchy']))
 async def handler_enable_anarchy(message: types.Message):
     await check_access(message, Grant.CHANGE_CHAT_SETTINGS)
     with db.get_connection() as conn:
@@ -674,7 +686,7 @@ async def handler_enable_anarchy(message: types.Message):
     await message.reply("Анархия включена. Все пользователи могут настраивать бота.")
 
 
-@dp.message_handler(commands=['disable_anarchy'])
+@dp.message_handler(*custom_filters(commands=['disable_anarchy']))
 async def handler_disable_anarchy(message: types.Message):
     await check_access(message, Grant.CHANGE_CHAT_SETTINGS)
     with db.get_connection() as conn:

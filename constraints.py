@@ -15,6 +15,8 @@ _REGEX_MEMBER = r"(?:[@\w]|[-])+"
 MESSAGE_FOR_GROUP = "a-z, а-я, цифры, дефис и подчёркивание"
 MESSAGE_FOR_MEMBER = "буквы, цифры, дефис и подчёркивание"
 
+REGEX_ONLY_CMD = re.compile(fr'^/({_REGEX_CMD})$')
+
 REGEX_CMD_GROUP = re.compile(fr"^/({_REGEX_CMD})\s+(?P<group>{_REGEX_GROUP})$")
 REGEX_CMD_GROUP_RENAME = re.compile(fr"^/({_REGEX_CMD})\s+(?P<group>{_REGEX_GROUP})\s+(?P<new_group>{_REGEX_GROUP})$")
 

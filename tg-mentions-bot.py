@@ -539,6 +539,11 @@ async def handler_remove_members(message: types.Message):
 @dp.message_handler(*custom_filters(commands=["call"]))
 async def handler_call(message: types.Message):
     await check_access(message, grant=Grant.READ_ACCESS)
+
+    if constraints.REGEX_ONLY_CMD.search(message.text):
+        await handler_xcall(message)
+        return
+
     match = constraints.REGEX_CMD_GROUP_MESSAGE.search(message.text)
     if not match:
         return await message.reply(

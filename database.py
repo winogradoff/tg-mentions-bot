@@ -158,6 +158,26 @@ def select_group_by_alias_name(connection: DictConnection, chat_id: int, alias_n
         )
 
 
+def select_group_by_id(connection: DictConnection, group_id: int) -> Optional[GroupAlias]:
+    logging.info(f"DB: selecting group: group_id=[{group_id}]")
+    with get_cursor(connection) as cursor:
+        cursor.execute(
+            "select chat_id, group_id, alias_id, alias_name"
+            " from chat_group_alias"
+            " where group_id = %(group_id)s",
+            {"group_id": group_id}
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return GroupAlias(
+            chat_id=row["chat_id"],
+            group_id=row["group_id"],
+            alias_id=row["alias_id"],
+            alias_name=row["alias_name"]
+        )
+
+
 def select_members(connection: DictConnection, group_id: int) -> List[Member]:
     logging.info(f"DB: selecting members: group_id=[{group_id}]")
     with get_cursor(connection) as cursor:

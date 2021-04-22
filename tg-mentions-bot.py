@@ -574,7 +574,15 @@ async def handler_call(message: types.Message):
 
     mentions = convert_members_to_mentions(members)
 
-    await message.reply(" ".join(mentions), parse_mode=ParseMode.MARKDOWN)
+    await message.reply(
+        md.text(
+            'Призываем участников группы',
+            md_style.code(group_name),
+            ":\n",
+            " ".join(mentions)
+        ),
+        parse_mode=ParseMode.MARKDOWN
+    )
 
 
 @dp.message_handler(*custom_filters(commands=['xcall']))
@@ -662,6 +670,7 @@ async def process_callback_xcall(callback_query: types.CallbackQuery):
         )
 
     with db.get_connection() as conn:
+        group = db.select_group_by_id(conn, group_id=callback_data.group_id)
         members = db.select_members(conn, group_id=callback_data.group_id)
 
     if len(members) == 0:
@@ -674,7 +683,15 @@ async def process_callback_xcall(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
 
     mentions = convert_members_to_mentions(members)
-    await callback_query.message.edit_text(" ".join(mentions), parse_mode=ParseMode.MARKDOWN)
+    await callback_query.message.edit_text(
+        md.text(
+            'Призываем участников группы',
+            md_style.code(group.alias_name),
+            ":\n",
+            " ".join(mentions)
+        ),
+        parse_mode=ParseMode.MARKDOWN
+    )
 
 
 @dp.message_handler(*custom_filters(commands=['enable_anarchy']))

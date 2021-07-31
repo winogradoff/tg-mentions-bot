@@ -1,0 +1,4 @@
+package tgmentionsbot
+
+class BotRepository {
+}

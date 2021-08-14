@@ -31,3 +31,6 @@ target/
 
 # asdf
 .tool-versions
+
+# macOS
+.DS_Store

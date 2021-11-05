@@ -18,7 +18,8 @@ import tgmentionsbot.Command.*
 @Component
 class Bot(
     private val botProperties: BotProperties,
-    private val botService: BotService
+    private val botService: BotService,
+    private val responseMapper: ResponseMapper
 ) : TelegramLongPollingBot() {
 
     private val logger = LoggerFactory.getLogger(this.javaClass)
@@ -57,32 +58,33 @@ class Bot(
 
         HELP -> {
             message.checkAccess(Grant.READ_ACCESS)
-            message.sendReply(mapHelpResponse())
+            message.sendReply(responseMapper.toHelpResponse())
         }
 
         GROUPS -> {
             message.checkAccess(Grant.READ_ACCESS)
-            message.sendReply(mapGroupsResponse(botService.getGroups(chat.chatId)))
+            message.sendReply(responseMapper.toGroupsResponse(botService.getGroups(chat.chatId)))
         }
 
         MEMBERS -> {
             message.checkAccess(Grant.READ_ACCESS)
             val groupName = message.parseGroup()
             val members = botService.getMembers(chatId = chat.chatId, groupName = groupName)
-            message.sendReply(mapMembersResponse(groupName, members))
+            message.sendReply(responseMapper.toMembersResponse(groupName, members))
         }
 
         CALL -> {
             message.checkAccess(Grant.READ_ACCESS)
             val groupName = message.parseGroupWithTail()
             val members = botService.getMembers(chatId = chat.chatId, groupName = groupName)
-            message.sendReply(mapCallResponse(groupName, members))
+            message.sendReply(responseMapper.toCallResponse(groupName, members))
         }
 
         ADD_GROUP -> {
             message.checkAccess(Grant.WRITE_ACCESS)
-            botService.addGroup(chat = chat, groupName = message.parseGroup())
-            message.sendReply("Группа добавлена.")
+            val groupName = message.parseGroup()
+            botService.addGroup(chat = chat, groupName = groupName)
+            message.sendReply(responseMapper.toAddGroupResponse(groupName))
         }
 
         REMOVE_GROUP -> {
@@ -95,7 +97,7 @@ class Bot(
             message.checkAccess(Grant.WRITE_ACCESS)
             val (groupName: GroupName, aliasName: GroupName) = message.parseGroupWithAlias()
             botService.addAlias(chatId = chat.chatId, groupName = groupName, aliasName = aliasName)
-            message.sendReply("Синоним группы добавлен.")
+            message.sendReply(responseMapper.toAddAliasResponse(groupName, aliasName))
         }
 
         REMOVE_ALIAS -> {
@@ -109,14 +111,14 @@ class Bot(
             message.checkAccess(Grant.WRITE_ACCESS)
             val (groupName: GroupName, members: Set<Member>) = message.parseGroupWithMembers()
             botService.addMembers(chatId = chat.chatId, groupName = groupName, newMembers = members)
-            message.sendReply(mapAddMembersResponse(groupName, members))
+            message.sendReply(responseMapper.toAddMembersResponse(groupName, members))
         }
 
         REMOVE_MEMBERS -> {
             message.checkAccess(Grant.WRITE_ACCESS)
             val (groupName: GroupName, members: Set<Member>) = message.parseGroupWithMembers()
             botService.removeMembers(chatId = chat.chatId, groupName = groupName, members = members)
-            message.sendReply(mapRemoveMembersResponse(groupName, members))
+            message.sendReply(responseMapper.toRemoveMembersResponse(groupName, members))
         }
 
         ENABLE_ANARCHY -> {
@@ -233,42 +235,11 @@ class Bot(
         return groupName to members
     }
 
-    /* Маппинг ответов */
-
-    private fun mapHelpResponse() = "Доступные команды:\n" +
-            values().joinToString(separator = "\n") { command ->
-                listOfNotNull(
-                    command.keys.joinToString(separator = ", ") { "/$it" },
-                    command.description
-                ).joinToString(separator = " — ")
-            }
-
-    private fun mapCallResponse(groupName: GroupName, members: List<Member>): String =
-        "Призываем участников группы [$groupName]:\n" +
-                members.joinToString(separator = "\n") { "- ${it.memberName.value}" }
-
-    private fun mapGroupsResponse(groups: List<GroupWithAliases>): String =
-        "Вот такие группы существуют:\n" +
-                groups.joinToString(separator = "\n") { "- ${it.groupName} (синонимы: ${it.aliasNames})" }
-
-    private fun mapMembersResponse(groupName: GroupName, members: List<Member>): String =
-        "Участники группы '$groupName':\n" +
-                members.joinToString(separator = "\n") { "- ${it.memberName.value}" }
-
-    // todo: смаппить правильно ссылку на пользователей без имени
-    private fun mapAddMembersResponse(groupName: GroupName, members: Set<Member>): String =
-        "Пользователи добавленные в группу '$groupName':\n" +
-                members.joinToString(separator = "\n") { "- ${it.memberName.value}" }
-
-    // todo: смаппить правильно ссылку на пользователей без имени
-    private fun mapRemoveMembersResponse(groupName: GroupName, members: Set<Member>): String =
-        "Пользователи удалённые из группы '$groupName':\n" +
-                members.joinToString(separator = "\n") { "- ${it.memberName.value}" }
-
     private fun Message.sendReply(replyText: String) {
         execute(
             SendMessage().also { sendMessage ->
                 sendMessage.chatId = chatId.toString()
+                sendMessage.parseMode = PARSE_MODE
                 sendMessage.text = replyText
             }
         )
@@ -283,22 +254,22 @@ class Bot(
             } catch (ex: BotReplyException) {
                 when (ex) {
                     is BotReplyException.ValidationError -> {
-                        logger.error("Validation error: ${ex.message}", ex)
-                        sendReply("Ошибка валидации: ${ex.userMessage}")
+                        logger.warn("Validation error: ${ex.message}")
+                        sendReply(ex.userMessage)
                     }
 
                     is BotReplyException.NotFoundError -> {
-                        logger.error("Not found error: ${ex.message}", ex)
+                        logger.warn("Not found error: ${ex.message}")
                         sendReply(ex.userMessage)
                     }
 
                     is BotReplyException.IntegrityViolationError -> {
-                        logger.error("Integrity violation error: ${ex.message}", ex)
+                        logger.warn("Integrity violation error: ${ex.message}")
                         sendReply(ex.userMessage)
                     }
 
                     is BotReplyException.AuthorizationError -> {
-                        logger.error("Authorization error: ${ex.message}", ex)
+                        logger.warn("Authorization error: ${ex.message}")
                         sendReply("Действие запрещено! Обратитесь к администратору группы.")
                     }
                 }
@@ -318,5 +289,6 @@ class Bot(
 
     companion object {
         private const val CHAT_TYPE_PRIVATE = "private"
+        private const val PARSE_MODE = "HTML"
     }
 }

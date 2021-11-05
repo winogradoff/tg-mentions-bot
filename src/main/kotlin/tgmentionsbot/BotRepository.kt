@@ -8,6 +8,7 @@ import org.springframework.jdbc.support.KeyHolder
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
+import java.sql.ResultSet
 
 
 @Repository
@@ -153,9 +154,9 @@ class BotRepository(private val jdbcTemplate: NamedParameterJdbcTemplate) {
             mapOf("group_id" to groupId.value)
         ) { rs, _ ->
             Member(
-                memberId = MemberId(rs.getLong("member_id")),
                 memberName = MemberName(rs.getString("member_name")),
-                userId = UserId(rs.getLong("user_id"))
+                memberId = rs.getLongOrNull("member_id")?.let { MemberId(it) },
+                userId = rs.getLongOrNull("user_id")?.let { UserId(it) }
             )
         }
     }
@@ -215,9 +216,6 @@ class BotRepository(private val jdbcTemplate: NamedParameterJdbcTemplate) {
         ).checkUpdateCount(1)
     }
 
-    private fun Int.checkUpdateCount(expected: Int) =
-        check(this == expected) { "Wrong update count: actual=[$this], expected=[$expected]" }
-
     fun isAnarchyEnabled(chatId: ChatId): Boolean {
         logger.info("Getting actual anarchy status: chatId=[${chatId}]")
         val result: List<Boolean> = jdbcTemplate.query(
@@ -230,4 +228,9 @@ class BotRepository(private val jdbcTemplate: NamedParameterJdbcTemplate) {
         ) { rs, _ -> rs.getBoolean("is_anarchy_enabled") }
         return result.isEmpty() || result.single()
     }
+
+    private fun Int.checkUpdateCount(expected: Int) =
+        check(this == expected) { "Wrong update count: actual=[$this], expected=[$expected]" }
+
+    private fun ResultSet.getLongOrNull(column: String): Long? = getLong(column).takeUnless { wasNull() }
 }

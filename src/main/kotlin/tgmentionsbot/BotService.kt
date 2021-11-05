@@ -17,7 +17,6 @@ class BotService(
         checkGroupsExists(groups)
         val lookupByGroupId = groups.groupBy { it.groupId }
         return lookupByGroupId.keys
-            .sortedBy { it.value }
             .map { groupId ->
                 val aliases = lookupByGroupId.getValue(groupId).sortedBy { it.aliasId.value }
                 GroupWithAliases(
@@ -25,6 +24,7 @@ class BotService(
                     aliasNames = aliases.drop(1).map { it.aliasName }
                 )
             }
+            .sortedBy { it.groupName.value }
     }
 
     fun getMembers(chatId: ChatId, groupName: GroupName): List<Member> {
@@ -33,6 +33,7 @@ class BotService(
             transactionTemplate.execute {
                 val group = getGroupByNameOrThrow(chatId, groupName)
                 botRepository.getMembersByGroupId(group.groupId)
+                    .sortedBy { it.memberName.value }
             }
         )
     }
@@ -46,6 +47,7 @@ class BotService(
             )
         }
         transactionTemplate.executeWithoutResult {
+            botRepository.getChatByIdForUpdate(chatId)
             val group = getGroupByNameOrThrow(chatId, groupName)
             val existingMembers = botRepository.getMembersByGroupId(group.groupId)
             if (existingMembers.size + newMembers.size > BotConstraints.MAX_MEMBERS_PER_GROUP) {
@@ -59,6 +61,7 @@ class BotService(
                 )
             }
             newMembers.forEach { member ->
+                verifyMemberDoesNotExistsYet(existingMembers, member)
                 botRepository.addMember(group.groupId, member)
             }
         }
@@ -86,8 +89,8 @@ class BotService(
             botRepository.addChat(chat)
             botRepository.getChatByIdForUpdate(chat.chatId)
             val groupAliases = botRepository.getAliasesByChatId(chat.chatId)
-            verifyGroupDoesNotExistsYet(groupAliases, groupName)
             verifyNumberOfGroupsPerChat(groupAliases)
+            verifyGroupDoesNotExistsYet(groupAliases, groupName)
             val groupId = botRepository.addGroup(chat.chatId)
             botRepository.addAlias(chat.chatId, groupId, groupName)
         }
@@ -116,17 +119,18 @@ class BotService(
         transactionTemplate.executeWithoutResult {
             botRepository.getChatByIdForUpdate(chatId)
             val group = getGroupByNameOrThrow(chatId, groupName)
-            val aliases = botRepository.getAliasesByGroupId(group.groupId)
-            if (aliasName in aliases.map { it.aliasName }) {
+            val chatAliases = botRepository.getAliasesByChatId(chatId)
+            if (aliasName in chatAliases.map { it.aliasName }) {
                 throw BotReplyException.ValidationError(
                     message = "This group alias already exists",
                     userMessage = "Такой синоним уже используется!"
                 )
             }
-            if (aliases.size >= BotConstraints.MAX_ALIASES_PER_GROUP) {
+            val groupAliases = botRepository.getAliasesByGroupId(group.groupId)
+            if (groupAliases.size >= BotConstraints.MAX_ALIASES_PER_GROUP) {
                 throw BotReplyException.ValidationError(
                     message = "Too many aliases already exists:" +
-                            " actualCount=[${aliases.size}]," +
+                            " actualCount=[${groupAliases.size}]," +
                             " MAX_ALIASES_PER_GROUP=${BotConstraints.MAX_ALIASES_PER_GROUP}",
                     userMessage = "Нельзя добавить так много синонимов!" +
                             " Текущее ограничение для одной группы: ${BotConstraints.MAX_ALIASES_PER_GROUP}"
@@ -174,17 +178,38 @@ class BotService(
 
     private fun verifyNumberOfGroupsPerChat(groupAliases: List<GroupAlias>) {
         val countOfGroupsInChat = groupAliases.asSequence().distinctBy { it.groupId }.count()
-        check(countOfGroupsInChat < BotConstraints.MAX_GROUPS_PER_CHAT) { "Too much groups" }
+        val maxGroupsPerChat = BotConstraints.MAX_GROUPS_PER_CHAT
+        if (countOfGroupsInChat >= maxGroupsPerChat) {
+            throw BotReplyException.IntegrityViolationError(
+                message = "Too much groups, maxGroupsPerChat=[$maxGroupsPerChat]",
+                userMessage = "Слишком много групп уже создано! Текущее ограничение для чата: $maxGroupsPerChat"
+            )
+        }
     }
 
-    private fun verifyGroupDoesNotExistsYet(groupAliases: List<GroupAlias>, groupName: GroupName) =
-        check(groupAliases.none { it.aliasName == groupName }) { "Group name already exists" }
+    private fun verifyGroupDoesNotExistsYet(groupAliases: List<GroupAlias>, groupName: GroupName) {
+        if (groupAliases.any { it.aliasName == groupName }) {
+            throw BotReplyException.IntegrityViolationError(
+                message = "Group [$groupName] already exists!",
+                userMessage = "Такая группа уже существует!"
+            )
+        }
+    }
+
+    private fun verifyMemberDoesNotExistsYet(existingMembers: List<Member>, member: Member) {
+        if (existingMembers.any { it.memberName == member.memberName }) {
+            throw BotReplyException.IntegrityViolationError(
+                message = "Member [${member.memberName}] already exists!",
+                userMessage = "Такой пользователь уже существует!"
+            )
+        }
+    }
 
     private fun getGroupByNameOrThrow(chatId: ChatId, groupName: GroupName): GroupAlias =
         botRepository.getAliasByName(chatId, groupName)
             ?: throw BotReplyException.NotFoundError(
                 message = "Group not found: chatId=[${chatId}], groupName=[$groupName]",
-                userMessage = "Группа '$groupName' не найдена!"
+                userMessage = "Такая группа не найдена!"
             )
 
     private fun checkGroupsExists(groups: List<*>) {

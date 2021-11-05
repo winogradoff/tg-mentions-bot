@@ -117,6 +117,11 @@ internal class BotServiceTest {
             val newMember1 = Member(memberName = MemberName("xxx"))
             val newMember2 = Member(memberName = MemberName("yyy"))
 
+            val existingMembers: List<Member> = listOf(
+                Member(memberName = MemberName("qqq1")),
+                Member(memberName = MemberName("qqq2")),
+            )
+
             every {
                 botRepository.getAliasByName(chatId = chatId, aliasName = groupName)
             } returns GroupAlias(
@@ -126,7 +131,7 @@ internal class BotServiceTest {
                 aliasId = AliasId(456)
             )
 
-            every { botRepository.getMembersByGroupId(groupId) } returns listOf(mockk(), mockk())
+            every { botRepository.getMembersByGroupId(groupId) } returns existingMembers
 
             // when
             botService.addMembers(chatId = chatId, groupName = groupName, newMembers = setOf(newMember1, newMember2))

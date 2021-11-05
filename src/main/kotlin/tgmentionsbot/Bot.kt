@@ -5,13 +5,9 @@ import org.springframework.stereotype.Component
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
 import org.telegram.telegrambots.meta.api.methods.groupadministration.GetChatAdministrators
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
-import org.telegram.telegrambots.meta.api.objects.EntityType
 import org.telegram.telegrambots.meta.api.objects.Message
-import org.telegram.telegrambots.meta.api.objects.MessageEntity
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMember
-import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMemberAdministrator
-import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMemberOwner
 import tgmentionsbot.Command.*
 
 
@@ -19,6 +15,7 @@ import tgmentionsbot.Command.*
 class Bot(
     private val botProperties: BotProperties,
     private val botService: BotService,
+    private val requestMapper: RequestMapper,
     private val responseMapper: ResponseMapper
 ) : TelegramLongPollingBot() {
 
@@ -31,15 +28,17 @@ class Bot(
 
         logger.debug("Update: $update")
 
-        if (!update.isCommandMessage()) return
+        if (!requestMapper.isCommandMessage(update)) {
+            return
+        }
 
         val updateMessage: Message = update.message
 
-        when (val command: Command? = updateMessage.parseCommand()) {
+        when (val command: Command? = requestMapper.parseCommand(updateMessage)) {
             null -> logger.warn("Unknown command: [$updateMessage]")
             else -> {
                 logger.info("Command: [$command]")
-                updateMessage.catchException {
+                catchException(updateMessage) {
                     routeCommand(
                         command = command,
                         message = updateMessage,
@@ -57,197 +56,115 @@ class Bot(
     private fun routeCommand(command: Command, message: Message, chat: Chat) = when (command) {
 
         HELP -> {
-            message.checkAccess(Grant.READ_ACCESS)
-            message.sendReply(responseMapper.toHelpResponse())
+            checkAccess(message, Grant.READ_ACCESS)
+            sendReply(message, responseMapper.toHelpResponse())
         }
 
         GROUPS -> {
-            message.checkAccess(Grant.READ_ACCESS)
-            message.sendReply(responseMapper.toGroupsResponse(botService.getGroups(chat.chatId)))
+            checkAccess(message, Grant.READ_ACCESS)
+            sendReply(message, responseMapper.toGroupsResponse(botService.getGroups(chat.chatId)))
         }
 
         MEMBERS -> {
-            message.checkAccess(Grant.READ_ACCESS)
-            val groupName = message.parseGroup()
+            checkAccess(message, Grant.READ_ACCESS)
+            val groupName = requestMapper.parseGroup(message)
             val members = botService.getMembers(chatId = chat.chatId, groupName = groupName)
-            message.sendReply(responseMapper.toMembersResponse(groupName, members))
+            sendReply(message, responseMapper.toMembersResponse(groupName, members))
         }
 
         CALL -> {
-            message.checkAccess(Grant.READ_ACCESS)
-            val groupName = message.parseGroupWithTail()
+            checkAccess(message, Grant.READ_ACCESS)
+            val groupName = requestMapper.parseGroupWithTail(message)
             val members = botService.getMembers(chatId = chat.chatId, groupName = groupName)
-            message.sendReply(responseMapper.toCallResponse(groupName, members))
+            sendReply(message, responseMapper.toCallResponse(groupName, members))
         }
 
         ADD_GROUP -> {
-            message.checkAccess(Grant.WRITE_ACCESS)
-            val groupName = message.parseGroup()
+            checkAccess(message, Grant.WRITE_ACCESS)
+            val groupName = requestMapper.parseGroup(message)
             botService.addGroup(chat = chat, groupName = groupName)
-            message.sendReply(responseMapper.toAddGroupResponse(groupName))
+            sendReply(message, responseMapper.toAddGroupResponse(groupName))
         }
 
         REMOVE_GROUP -> {
-            message.checkAccess(Grant.WRITE_ACCESS)
-            botService.removeGroup(chatId = chat.chatId, groupName = message.parseGroup())
-            message.sendReply("Группа удалена.")
+            checkAccess(message, Grant.WRITE_ACCESS)
+            botService.removeGroup(chatId = chat.chatId, groupName = requestMapper.parseGroup(message))
+            sendReply(message, "Группа удалена.")
         }
 
         ADD_ALIAS -> {
-            message.checkAccess(Grant.WRITE_ACCESS)
-            val (groupName: GroupName, aliasName: GroupName) = message.parseGroupWithAlias()
+            checkAccess(message, Grant.WRITE_ACCESS)
+            val (groupName: GroupName, aliasName: GroupName) = requestMapper.parseGroupWithAlias(message)
             botService.addAlias(chatId = chat.chatId, groupName = groupName, aliasName = aliasName)
-            message.sendReply(responseMapper.toAddAliasResponse(groupName, aliasName))
+            sendReply(message, responseMapper.toAddAliasResponse(groupName, aliasName))
         }
 
         REMOVE_ALIAS -> {
-            message.checkAccess(Grant.WRITE_ACCESS)
-            val (groupName: GroupName, aliasName: GroupName) = message.parseGroupWithAlias()
+            checkAccess(message, Grant.WRITE_ACCESS)
+            val (groupName: GroupName, aliasName: GroupName) = requestMapper.parseGroupWithAlias(message)
             botService.removeAlias(chatId = chat.chatId, groupName = groupName, aliasName = aliasName)
-            message.sendReply("Синоним группы был удалён.")
+            sendReply(message, "Синоним группы был удалён.")
         }
 
         ADD_MEMBERS -> {
-            message.checkAccess(Grant.WRITE_ACCESS)
-            val (groupName: GroupName, members: Set<Member>) = message.parseGroupWithMembers()
+            checkAccess(message, Grant.WRITE_ACCESS)
+            val (groupName: GroupName, members: Set<Member>) = requestMapper.parseGroupWithMembers(message)
             botService.addMembers(chatId = chat.chatId, groupName = groupName, newMembers = members)
-            message.sendReply(responseMapper.toAddMembersResponse(groupName, members))
+            sendReply(message, responseMapper.toAddMembersResponse(groupName, members))
         }
 
         REMOVE_MEMBERS -> {
-            message.checkAccess(Grant.WRITE_ACCESS)
-            val (groupName: GroupName, members: Set<Member>) = message.parseGroupWithMembers()
+            checkAccess(message, Grant.WRITE_ACCESS)
+            val (groupName: GroupName, members: Set<Member>) = requestMapper.parseGroupWithMembers(message)
             botService.removeMembers(chatId = chat.chatId, groupName = groupName, members = members)
-            message.sendReply(responseMapper.toRemoveMembersResponse(groupName, members))
+            sendReply(message, responseMapper.toRemoveMembersResponse(groupName, members))
         }
 
         ENABLE_ANARCHY -> {
-            message.checkAccess(Grant.CHANGE_CHAT_SETTINGS)
+            checkAccess(message, Grant.CHANGE_CHAT_SETTINGS)
             botService.enableAnarchy(chat.chatId)
-            message.sendReply("Анархия включена. Все пользователи могут настраивать бота.")
+            sendReply(message, "Анархия включена. Все пользователи могут настраивать бота.")
         }
 
         DISABLE_ANARCHY -> {
-            message.checkAccess(Grant.CHANGE_CHAT_SETTINGS)
+            checkAccess(message, Grant.CHANGE_CHAT_SETTINGS)
             botService.disableAnarchy(chat.chatId)
-            message.sendReply("Анархия выключена. Только администраторы могут настраивать бота.")
+            sendReply(message, "Анархия выключена. Только администраторы могут настраивать бота.")
         }
     }
 
-    /* Предварительные проверки */
-
-    private fun Message.getAnyMessageEntities(): List<MessageEntity> = entities ?: captionEntities ?: emptyList()
-
-    private fun MessageEntity.isBotCommand(): Boolean = offset == 0 && type == EntityType.BOTCOMMAND
-
-    private fun Update.isCommandMessage(): Boolean =
-        message?.getAnyMessageEntities()?.any { it.isBotCommand() } ?: false
-
-    private fun Message.parseCommand(): Command? =
-        Command.getByKey(getAnyMessageEntities().single { it.isBotCommand() }.text)
-
-    private fun Message.isPrivateChat() = chat.type == CHAT_TYPE_PRIVATE
-
-    private fun Message.isOwnerOrAdmin(): Boolean {
-        val fromUserId = requireNotNull(from).id
-        val members: List<ChatMember> = sendApiMethod(
-            GetChatAdministrators().apply { chatId = chat.id.toString() }
-        )
-        for (member in members) {
-            when {
-                member is ChatMemberOwner && member.user.id == fromUserId -> return true
-                member is ChatMemberAdministrator && member.user.id == fromUserId -> return true
-            }
-        }
-        return false
-    }
-
-    private fun Message.isAnarchyEnabled(): Boolean = botService.isAnarchyEnabled(ChatId(chat.id))
-
-    private fun Message.checkAccess(grant: Grant) {
-        logger.info("checkAccess grant=[$grant]")
-        when {
-            grant == Grant.READ_ACCESS -> logger.info("Read access => no restrictions")
-            isPrivateChat() -> logger.info("Private chat => no restrictions")
-            isOwnerOrAdmin() -> logger.info("Owner or admin => no restrictions")
-            isAnarchyEnabled() -> logger.info("No restriction when anarchy enabled")
-            else -> throw BotReplyException.AuthorizationError("Access denied: grant=[$grant]")
-        }
-    }
-
-    /* Парсинг входящих значений */
-
-    private fun Message.parseByRegex(pattern: Regex, userConstraintDetails: Map<String, String>): MatchResult =
-        pattern.matchEntire(text ?: caption) ?: throw BotReplyException.ValidationError(
-            message = "Match error with pattern=[$pattern]",
-            userMessage = "Ограничения:\n" +
-                    userConstraintDetails.entries.joinToString(separator = ",\n") { "${it.key}=[${it.value}]" }
-        )
-
-    private fun Message.parseGroup(): GroupName {
-        val matchResult = parseByRegex(
-            pattern = BotConstraints.REGEX_CMD_GROUP,
-            userConstraintDetails = mapOf("group" to BotConstraints.MESSAGE_FOR_GROUP)
-        )
-        return GroupName(requireNotNull(matchResult.groups["group"]?.value))
-    }
-
-    private fun Message.parseGroupWithTail(): GroupName {
-        val matchResult = parseByRegex(
-            pattern = BotConstraints.REGEX_CMD_GROUP_WITH_TAIL,
-            userConstraintDetails = mapOf("group" to BotConstraints.MESSAGE_FOR_GROUP)
-        )
-        return GroupName(requireNotNull(matchResult.groups["group"]?.value))
-    }
-
-    private fun Message.parseGroupWithAlias(): Pair<GroupName, GroupName> {
-        val matchResult: MatchResult = parseByRegex(
-            pattern = BotConstraints.REGEX_CMD_GROUP_ALIAS,
-            userConstraintDetails = mapOf(
-                "group" to BotConstraints.MESSAGE_FOR_GROUP,
-                "alias" to BotConstraints.MESSAGE_FOR_GROUP
-            )
-        )
-        val groupName = GroupName(requireNotNull(matchResult.groups["group"]?.value))
-        val aliasName = GroupName(requireNotNull(matchResult.groups["alias"]?.value))
-        return groupName to aliasName
-    }
-
-    private fun Message.parseGroupWithMembers(): Pair<GroupName, Set<Member>> {
-        val matchResult: MatchResult = parseByRegex(
-            pattern = BotConstraints.REGEX_CMD_GROUP_MEMBERS,
-            userConstraintDetails = mapOf(
-                "group" to BotConstraints.MESSAGE_FOR_GROUP,
-                "username" to BotConstraints.MESSAGE_FOR_MEMBER
-            )
-        )
-        val groupName = GroupName(requireNotNull(matchResult.groups["group"]?.value))
-        val members: Set<Member> = (entities ?: emptyList())
-            .asSequence()
-            .mapNotNull {
-                when (it.type) {
-                    EntityType.MENTION -> Member(memberName = MemberName(it.text))
-                    EntityType.TEXTMENTION -> Member(memberName = MemberName(it.text), userId = UserId(it.user.id))
-                    else -> null
-                }
-            }
-            .toSet()
-        return groupName to members
-    }
-
-    private fun Message.sendReply(replyText: String) {
+    private fun sendReply(message: Message, replyText: String) {
         execute(
             SendMessage().also { sendMessage ->
-                sendMessage.chatId = chatId.toString()
+                sendMessage.chatId = message.chatId.toString()
                 sendMessage.parseMode = PARSE_MODE
                 sendMessage.text = replyText
             }
         )
     }
 
-    /* Обработка ошибок */
+    private fun checkAccess(message: Message, grant: Grant) {
+        logger.info("checkAccess grant=[$grant]")
+        when {
+            grant == Grant.READ_ACCESS ->
+                logger.info("Read access => no restrictions")
+            requestMapper.isPrivateChat(message) ->
+                logger.info("Private chat => no restrictions")
+            requestMapper.isOwnerOrAdmin(message, getChatAdministrators(message)) ->
+                logger.info("Owner or admin => no restrictions")
+            botService.isAnarchyEnabled(ChatId(message.chat.id)) ->
+                logger.info("No restriction when anarchy enabled")
+            else -> throw BotReplyException.AuthorizationError("Access denied: grant=[$grant]")
+        }
+    }
 
-    private fun Message.catchException(block: () -> Unit) =
+    private fun getChatAdministrators(message: Message): List<ChatMember> =
+        sendApiMethod(
+            GetChatAdministrators()
+                .also { request -> request.chatId = message.chat.id.toString() }
+        )
+
+    private fun catchException(message: Message, block: () -> Unit) =
         suppressException {
             try {
                 block()
@@ -255,27 +172,27 @@ class Bot(
                 when (ex) {
                     is BotReplyException.ValidationError -> {
                         logger.warn("Validation error: ${ex.message}")
-                        sendReply(ex.userMessage)
+                        sendReply(message, ex.userMessage)
                     }
 
                     is BotReplyException.NotFoundError -> {
                         logger.warn("Not found error: ${ex.message}")
-                        sendReply(ex.userMessage)
+                        sendReply(message, ex.userMessage)
                     }
 
                     is BotReplyException.IntegrityViolationError -> {
                         logger.warn("Integrity violation error: ${ex.message}")
-                        sendReply(ex.userMessage)
+                        sendReply(message, ex.userMessage)
                     }
 
                     is BotReplyException.AuthorizationError -> {
                         logger.warn("Authorization error: ${ex.message}")
-                        sendReply("Действие запрещено! Обратитесь к администратору группы.")
+                        sendReply(message, "Действие запрещено! Обратитесь к администратору группы.")
                     }
                 }
             } catch (ex: Exception) {
                 logger.error("Unexpected error", ex)
-                sendReply("Что-то пошло не так...")
+                sendReply(message, "Что-то пошло не так...")
             }
         }
 
@@ -288,7 +205,6 @@ class Bot(
     }
 
     companion object {
-        private const val CHAT_TYPE_PRIVATE = "private"
         private const val PARSE_MODE = "HTML"
     }
 }

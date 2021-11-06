@@ -1,104 +1,117 @@
 package tgmentionsbot
 
-import org.apache.commons.text.StringEscapeUtils
 import org.springframework.stereotype.Component
 
 @Component
 class ResponseMapper {
 
-    fun toHelpResponse() = "<b>Доступные команды:</b>\n" +
-            Command.values().joinToString(separator = "\n") { command ->
-                listOfNotNull(
-                    command.keys.joinToString(separator = ", ") { "/$it" },
-                    command.description
-                ).joinToString(separator = " — ")
+    fun toHelpResponse(): String =
+        createHTML {
+            bold { text("Доступные команды:") }
+            newline()
+            for (command in Command.values()) {
+                for ((index, key) in command.keys.withIndex()) {
+                    text("/"); text(key)
+                    if (index + 1 < command.keys.size) {
+                        text(", ")
+                    }
+                }
+                if (command.description != null) {
+                    text(" — "); text(command.description)
+                }
+                newline()
             }
+        }
 
     fun toGroupsResponse(groups: List<GroupWithAliases>): String =
-        when {
-            groups.isEmpty() -> "Нет ни одной группы!"
-            else -> "<b>Вот такие группы существуют:</b>\n" +
-                    groups.asSequence()
-                        .map { (groupName: GroupName, aliasNames: List<GroupName>) ->
-                            "- ${escapeHtml(groupName.value)}${
-                                toCommaList(
-                                    items = aliasNames,
-                                    prefix = " (синонимы: ",
-                                    postfix = ")",
-                                ) { escapeHtml(it.value) }
-                            }"
+        createHTML {
+            bold { text("Вот такие группы существуют:") }
+            newline()
+            for ((groupName, aliasNames) in groups) {
+                text("- ")
+                text(groupName.value)
+                if (aliasNames.isNotEmpty()) {
+                    text(" (синонимы: ")
+                    for ((index, a) in aliasNames.withIndex()) {
+                        text(a.value)
+                        if (index < aliasNames.lastIndex) {
+                            text(", ")
                         }
-                        .joinToString(separator = "\n")
+                    }
+                    text(")")
+                }
+                newline()
+            }
         }
 
     fun toMembersResponse(groupName: GroupName, members: List<Member>): String =
-        when {
-            members.isEmpty() -> "В группе ${toGroupName(groupName)} нет ни одного пользователя!"
-            else -> "Участники группы ${toGroupName(groupName)}:\n" +
-                    toNewlineList(items = members) { "- ${escapeHtml(it.memberName.value)}" }
+        createHTML {
+            when {
+                members.isEmpty() -> {
+                    text("В группе "); bold { escape(groupName.value) }; text(" нет ни одного пользователя!")
+                }
+                else -> {
+                    text("Участники группы "); bold { escape(groupName.value) }; text(":")
+                    newline()
+                    for (member in members) {
+                        pre { text("- "); escape(member.memberName.value) }
+                        newline()
+                    }
+                }
+            }
         }
 
     fun toCallResponse(groupName: GroupName, members: List<Member>): String =
-        when {
-            members.isEmpty() -> "В группе ${toGroupName(groupName)} нет ни одного пользователя!"
-            else -> "Призываем участников группы ${toGroupName(groupName)}:\n" +
-                    toCommaList(members) { toMemberLink(it) }
+        createHTML {
+            when {
+                members.isEmpty() -> {
+                    text("В группе "); bold { escape(groupName.value) }; text(" нет ни одного пользователя!")
+                }
+                else -> {
+                    text("Призываем участников группы "); bold { escape(groupName.value) }; text(":")
+                    newline()
+                    for ((index, member) in members.withIndex()) {
+                        val id = member.userId
+                        val name = member.memberName.value
+                        when (id) {
+                            null -> escape(name)
+                            else -> link(url = "tg://user?id=${id.value}") { escape(name) }
+                        }
+                        if (index < members.lastIndex) {
+                            text(" ")
+                        }
+                    }
+                }
+            }
         }
 
     fun toAddMembersResponse(groupName: GroupName, members: Set<Member>): String =
-        "Пользователи добавленные в группу '$groupName':\n" +
-                toNewlineList(items = members) { "- ${toMemberLink(it)}" }
+        createHTML {
+            text("В группу "); bold { escape(groupName.value) }; text(" добавлены следующие пользователи:")
+            newline()
+            for (member in members) {
+                pre { text("- "); escape(member.memberName.value) }
+            }
+        }
 
     fun toRemoveMembersResponse(groupName: GroupName, members: Set<Member>): String =
-        "Пользователи удалённые из группы '$groupName':\n" +
-                members.joinToString(separator = "\n") { "- ${toMemberLink(it)}" }
+        createHTML {
+            text("Пользователи удалённые из группы "); bold { escape(groupName.value) }; text(":")
+            newline()
+            for (member in members) {
+                pre { text("- "); escape(member.memberName.value) }
+            }
+        }
 
-    fun toAddGroupResponse(groupName: GroupName): String = "Группа ${toGroupName(groupName)} добавлена!"
+    fun toAddGroupResponse(groupName: GroupName): String =
+        createHTML {
+            text("Группа "); bold { escape(groupName.value) }; text(" добавлена!")
+        }
 
     fun toAddAliasResponse(groupName: GroupName, aliasName: GroupName): String =
-        "Синоним ${toGroupName(aliasName)} для группы ${toGroupName(groupName)} успешно добавлен."
-
-    private fun escapeHtml(str: String): String = StringEscapeUtils.escapeHtml4(str)
-
-    private fun toGroupName(groupName: GroupName): String = "<b>${escapeHtml(groupName.value)}</b>"
-
-    private fun toMemberLink(member: Member): String =
-        when {
-            member.userId != null -> {
-                val userLink = "tg://user?id=${member.userId.value}"
-                val userName = escapeHtml(member.memberName.value)
-                """<a href="$userLink">$userName</a>"""
-            }
-            else -> escapeHtml(member.memberName.value)
-        }
-
-    private fun <T> toCommaList(
-        items: Collection<T>,
-        prefix: String = "",
-        postfix: String = "",
-        transform: (T) -> String
-    ): String =
-        when {
-            items.isEmpty() -> ""
-            else -> items.joinToString(
-                prefix = prefix,
-                postfix = postfix,
-                separator = ", ",
-                transform = { transform(it) })
-        }
-
-    private fun <T> toNewlineList(
-        items: Collection<T>,
-        prefix: String = "",
-        postfix: String = "",
-        transform: (T) -> String
-    ): String =
-        when {
-            items.isEmpty() -> ""
-            else -> items.joinToString(
-                prefix = prefix,
-                postfix = postfix,
-                separator = "\n",
-                transform = { transform(it) })
+        createHTML {
+            text("Синоним "); bold { escape(aliasName.value) }
+            text(" для группы "); bold { escape(groupName.value) }
+            text(" успешно добавлен.")
         }
 }

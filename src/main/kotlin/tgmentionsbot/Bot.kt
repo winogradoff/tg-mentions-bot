@@ -3,11 +3,13 @@ package tgmentionsbot
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
+import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands
 import org.telegram.telegrambots.meta.api.methods.groupadministration.GetChatAdministrators
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.objects.Message
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMember
+import org.telegram.telegrambots.meta.api.objects.commands.BotCommand
 import tgmentionsbot.Command.*
 
 
@@ -23,6 +25,10 @@ class Bot(
 
     override fun getBotToken(): String = botProperties.botToken
     override fun getBotUsername(): String = botProperties.botUsername
+
+    override fun onRegister() {
+        setBotCommands()
+    }
 
     override fun onUpdateReceived(update: Update) {
 
@@ -131,6 +137,27 @@ class Bot(
             botService.disableAnarchy(chat.chatId)
             sendReply(message, "Анархия выключена. Только администраторы могут настраивать бота.")
         }
+    }
+
+    private fun setBotCommands() {
+        val setMyCommands = with(SetMyCommands.builder()) {
+            for (command in Command.values()) {
+                for (key in command.keys) {
+                    command(
+                        BotCommand.builder()
+                            .command(key)
+                            .description(command.description)
+                            .build()
+                    )
+                }
+            }
+            build()
+        }
+        logger.info("Setting bot commands...")
+        executeAsync(setMyCommands)
+            .whenCompleteAsync { result: Boolean?, error: Throwable? ->
+                logger.info("Setting bot commands is complete: result=[{}], error=[{}]", result, error)
+            }
     }
 
     private fun sendReply(message: Message, replyText: String) {

@@ -94,7 +94,7 @@ data class Member(
 
 enum class Command(
     val keys: Set<String>,
-    val description: String? = null
+    val description: String
 ) {
     HELP(keys = setOf("start", "help"), description = "справка по командам бота"),
     GROUPS(keys = setOf("groups"), description = "список групп"),

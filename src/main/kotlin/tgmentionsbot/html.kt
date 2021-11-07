@@ -29,8 +29,16 @@ class HtmlContext {
         tags += surround(prefix = "<b>", postfix = "</b>") { block() }
     }
 
+    fun bold(s: String) {
+        tags += surround(prefix = "<b>", postfix = "</b>") { text(s) }
+    }
+
     fun pre(block: HtmlContext.() -> Unit) {
         tags += surround(prefix = "<pre>", postfix = "</pre>") { block() }
+    }
+
+    fun pre(s: String) {
+        tags += surround(prefix = "<pre>", postfix = "</pre>") { text(s) }
     }
 
     fun link(url: String, block: HtmlContext.() -> Unit) {

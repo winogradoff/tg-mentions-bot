@@ -7,7 +7,21 @@ class ResponseMapper {
 
     fun toHelpResponse(): String =
         createHTML {
-            bold { text("Доступные команды:") }
+
+            bold("Пример работы с ботом:")
+            newline()
+            pre("/add_group group1"); newline()
+            pre("/add_members group1 @user1 @user2 @user3"); newline()
+            pre("/call group1"); newline()
+            newline()
+
+            text("Команда "); pre("call")
+            text(" вызовет ранее добавленных пользователей из группы "); pre("group1")
+            text(" вот в таком виде:"); newline()
+            pre("@user1 @user2 @user3")
+            newline(); newline()
+
+            bold("Доступные команды:")
             newline()
             for (command in Command.values()) {
                 for ((index, key) in command.keys.withIndex()) {
@@ -16,16 +30,14 @@ class ResponseMapper {
                         text(", ")
                     }
                 }
-                if (command.description != null) {
-                    text(" — "); text(command.description)
-                }
+                text(" — "); text(command.description)
                 newline()
             }
         }
 
     fun toGroupsResponse(groups: List<GroupWithAliases>): String =
         createHTML {
-            bold { text("Вот такие группы существуют:") }
+            bold("Вот такие группы существуют:")
             newline()
             for ((groupName, aliasNames) in groups) {
                 text("- ")

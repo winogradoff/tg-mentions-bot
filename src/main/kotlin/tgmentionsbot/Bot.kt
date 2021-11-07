@@ -137,6 +137,7 @@ class Bot(
         execute(
             SendMessage().also { sendMessage ->
                 sendMessage.chatId = message.chatId.toString()
+                sendMessage.replyToMessageId = message.messageId
                 sendMessage.parseMode = PARSE_MODE
                 sendMessage.text = replyText
             }

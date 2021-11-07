@@ -28,7 +28,7 @@ class Bot(
 
         logger.debug("Update: $update")
 
-        if (!requestMapper.isCommandMessage(update)) {
+        if (!requestMapper.isCommandMessage(update) || requestMapper.isForwardedMessage(update)) {
             return
         }
 

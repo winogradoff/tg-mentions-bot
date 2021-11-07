@@ -18,6 +18,9 @@ class RequestMapper {
             ?.any { isBotCommand(it) }
             ?: false
 
+    fun isForwardedMessage(update: Update): Boolean =
+        update.message.forwardFrom != null
+
     fun isPrivateChat(message: Message) =
         message.chat.type == CHAT_TYPE_PRIVATE
 

@@ -35,8 +35,10 @@ class RequestMapper {
         return false
     }
 
-    fun parseCommand(message: Message): Command? =
-        Command.getByKey(getAnyMessageEntities(message).single { isBotCommand(it) }.text)
+    fun parseCommand(message: Message, botName: String): Command? {
+        val commandText = getAnyMessageEntities(message).single { isBotCommand(it) }.text
+        return Command.getByKey(commandText.removeSuffix("@$botName"))
+    }
 
     fun parseGroup(message: Message): GroupName {
         val matchResult = parseByRegex(

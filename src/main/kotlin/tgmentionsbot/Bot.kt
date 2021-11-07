@@ -40,7 +40,7 @@ class Bot(
 
         val updateMessage: Message = update.message
 
-        when (val command: Command? = requestMapper.parseCommand(updateMessage)) {
+        when (val command: Command? = requestMapper.parseCommand(updateMessage, me.userName)) {
             null -> logger.warn("Unknown command: [$updateMessage]")
             else -> {
                 logger.info("Command: [$command]")

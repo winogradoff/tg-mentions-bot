@@ -5,9 +5,7 @@ import assertk.assertions.containsExactlyInAnyOrder
 import assertk.assertions.hasSize
 import assertk.assertions.isEmpty
 import assertk.assertions.isNotNull
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.verify
+import io.mockk.*
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.springframework.transaction.TransactionStatus
@@ -103,6 +101,68 @@ internal class BotServiceTest {
 
             // then
             assertThat(members).containsExactlyInAnyOrder(member1, member2)
+        }
+    }
+
+    @Nested
+    inner class `addGroup - tests` {
+
+        @Test
+        fun positive() {
+            // given
+            val chat = Chat(
+                chatId = chatId,
+                chatTitle = "chat-title",
+                chatUserName = "chat-name",
+                isAnarchyEnabled = null
+            )
+            val groupId = GroupId(123)
+            val groupName = GroupName("qwe")
+
+            every { botRepository.addChat(any()) } just runs
+            every { botRepository.getChatByIdForUpdate(chatId) } just runs
+            every { botRepository.getAliasesByChatId(chatId) } returns emptyList()
+            every { botRepository.addGroup(chatId) } returns groupId
+
+            // when
+            botService.addGroup(chat = chat, groupName = groupName)
+
+            // then
+            verify { botRepository.addChat(chat) }
+            verify { botRepository.addGroup(chatId) }
+            verify { botRepository.addAlias(chatId, groupId, groupName) }
+        }
+    }
+
+    @Nested
+    inner class `removeGroup - tests` {
+
+        @Test
+        fun positive() {
+            // given
+            val groupId = GroupId(123)
+            val groupName = GroupName("qwe")
+            val groupAlias = GroupAlias(
+                chatId = chatId,
+                groupId = groupId,
+                aliasId = AliasId(111),
+                aliasName = groupName
+            )
+            every { botRepository.getAliasByName(chatId, groupName) } returns groupAlias
+            every { botRepository.getMembersByGroupId(groupId) } returns emptyList()
+
+            every { botRepository.getAliasesByGroupId(groupId) } returns listOf(
+                GroupAlias(chatId = chatId, aliasId = AliasId(1), groupId = groupId, aliasName = GroupName("aaa")),
+                GroupAlias(chatId = chatId, aliasId = AliasId(2), groupId = groupId, aliasName = GroupName("bbb")),
+            )
+
+            // when
+            botService.removeGroup(chatId = chatId, groupName = groupName)
+
+            // then
+            verify { botRepository.removeGroupById(groupId) }
+            verify { botRepository.removeAliasById(AliasId(1)) }
+            verify { botRepository.removeAliasById(AliasId(2)) }
         }
     }
 

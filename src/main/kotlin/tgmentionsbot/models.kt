@@ -104,8 +104,8 @@ enum class Command(
     REMOVE_GROUP(keys = setOf("remove_group"), description = "удалить группу"),
     ADD_ALIAS(keys = setOf("add_alias"), description = "добавить синоним группы"),
     REMOVE_ALIAS(keys = setOf("remove_alias"), description = "удалить синоним группы"),
-    ADD_MEMBERS(keys = setOf("add_members"), description = "добавить пользователей в группу"),
-    REMOVE_MEMBERS(keys = setOf("remove_members"), description = "удалить пользователей из группы"),
+    ADD_MEMBERS(keys = setOf("add_member", "add_members"), description = "добавить пользователей в группу"),
+    REMOVE_MEMBERS(keys = setOf("remove_member", "remove_members"), description = "удалить пользователей из группы"),
     ENABLE_ANARCHY(keys = setOf("enable_anarchy"), description = "всем доступны настройки"),
     DISABLE_ANARCHY(keys = setOf("disable_anarchy"), description = "только админам доступны настройки");
 

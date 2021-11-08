@@ -103,6 +103,7 @@ class ResponseMapper {
             newline()
             for (member in members) {
                 pre { text("- "); escape(member.memberName.value) }
+                newline()
             }
         }
 
@@ -112,6 +113,7 @@ class ResponseMapper {
             newline()
             for (member in members) {
                 pre { text("- "); escape(member.memberName.value) }
+                newline()
             }
         }
 

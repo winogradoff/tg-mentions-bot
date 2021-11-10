@@ -115,7 +115,7 @@ class ResponseMapper {
             fun constrains(vararg items: Pair<String, String>) {
                 bold("Ограничения:"); newline()
                 for ((field, message) in items) {
-                    text("$field: "); pre(message); newline()
+                    text("- $field: $message"); newline()
                 }
             }
 

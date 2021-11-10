@@ -1,10 +1,7 @@
 package tgmentionsbot
 
 import assertk.assertThat
-import assertk.assertions.containsExactlyInAnyOrder
-import assertk.assertions.hasSize
-import assertk.assertions.isEmpty
-import assertk.assertions.isNotNull
+import assertk.assertions.*
 import io.mockk.*
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -232,6 +229,51 @@ internal class BotServiceTest {
             // then
             verify { botRepository.removeMemberByName(groupId = groupId, memberName = member1.memberName) }
             verify { botRepository.removeMemberByName(groupId = groupId, memberName = member2.memberName) }
+        }
+    }
+
+    @Nested
+    inner class `removeAlias - tests` {
+
+        private val groupId = GroupId(123)
+
+        private val groupAlias1 = GroupAlias(
+            chatId = chatId,
+            aliasName = GroupName("alias-1"),
+            groupId = groupId,
+            aliasId = AliasId(111)
+        )
+        private val groupAlias2 = GroupAlias(
+            chatId = chatId,
+            aliasName = GroupName("alias-2"),
+            groupId = groupId,
+            aliasId = AliasId(222)
+        )
+
+        @Test
+        fun positive() {
+            // given
+            every { botRepository.getAliasByName(chatId, groupAlias1.aliasName) } returns groupAlias1
+            every { botRepository.getAliasesByGroupId(groupId) } returns listOf(groupAlias1, groupAlias2)
+
+            // when
+            botService.removeAlias(chatId, aliasName = groupAlias1.aliasName)
+
+            // then
+            verifyOrder {
+                botRepository.getChatByIdForUpdate(chatId)
+                botRepository.removeAliasById(groupAlias1.aliasId)
+            }
+        }
+
+        @Test
+        fun `negative - cannot delete last name`() {
+            every { botRepository.getAliasByName(chatId, groupAlias1.aliasName) } returns groupAlias1
+            every { botRepository.getAliasesByGroupId(groupId) } returns listOf(groupAlias1)
+
+            assertThat { botService.removeAlias(chatId, aliasName = groupAlias1.aliasName) }
+                .isFailure()
+                .isInstanceOf(BotReplyException.ValidationError::class)
         }
     }
 }

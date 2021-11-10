@@ -107,9 +107,9 @@ class Bot(
 
         REMOVE_ALIAS -> {
             checkAccess(message, Grant.WRITE_ACCESS)
-            val (groupName: GroupName, aliasName: GroupName) = requestMapper.parseGroupWithAlias(message)
-            botService.removeAlias(chatId = chat.chatId, groupName = groupName, aliasName = aliasName)
-            sendReply(message, "Синоним группы был удалён.")
+            val aliasName = requestMapper.parseGroup(message)
+            botService.removeAlias(chatId = chat.chatId, aliasName = aliasName)
+            sendReply(message, responseMapper.toRemoveAliasResponse(aliasName))
         }
 
         ADD_MEMBERS -> {
@@ -192,35 +192,38 @@ class Bot(
                 .also { request -> request.chatId = message.chat.id.toString() }
         )
 
-    private fun catchException(message: Message, block: () -> Unit) =
+    private fun catchException(originalMessage: Message, block: () -> Unit) =
         suppressException {
             try {
                 block()
             } catch (ex: BotReplyException) {
-                when (ex) {
-                    is BotReplyException.ValidationError -> {
-                        logger.warn("Validation error: ${ex.message}")
-                        sendReply(message, ex.userMessage)
-                    }
+                sendReply(
+                    message = originalMessage,
+                    replyText = when (ex) {
+                        is BotReplyException.ValidationError -> {
+                            logger.warn("Validation error: ${ex.message}")
+                            ex.userMessage
+                        }
 
-                    is BotReplyException.NotFoundError -> {
-                        logger.warn("Not found error: ${ex.message}")
-                        sendReply(message, ex.userMessage)
-                    }
+                        is BotReplyException.NotFoundError -> {
+                            logger.warn("Not found error: ${ex.message}")
+                            ex.userMessage
+                        }
 
-                    is BotReplyException.IntegrityViolationError -> {
-                        logger.warn("Integrity violation error: ${ex.message}")
-                        sendReply(message, ex.userMessage)
-                    }
+                        is BotReplyException.IntegrityViolationError -> {
+                            logger.warn("Integrity violation error: ${ex.message}")
+                            ex.userMessage
+                        }
 
-                    is BotReplyException.AuthorizationError -> {
-                        logger.warn("Authorization error: ${ex.message}")
-                        sendReply(message, "Действие запрещено! Обратитесь к администратору группы.")
+                        is BotReplyException.AuthorizationError -> {
+                            logger.warn("Authorization error: ${ex.message}")
+                            "Действие запрещено! Обратитесь к администратору группы."
+                        }
                     }
-                }
+                )
             } catch (ex: Exception) {
                 logger.error("Unexpected error", ex)
-                sendReply(message, "Что-то пошло не так...")
+                sendReply(originalMessage, "Что-то пошло не так...")
             }
         }
 

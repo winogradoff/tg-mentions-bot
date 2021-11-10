@@ -128,4 +128,9 @@ class ResponseMapper {
             text(" для группы "); bold { escape(groupName.value) }
             text(" успешно добавлен.")
         }
+
+    fun toRemoveAliasResponse(aliasName: GroupName): String =
+        createHTML {
+            text("Синоним "); bold { escape(aliasName.value) }; text(" был успешно удалён.")
+        }
 }

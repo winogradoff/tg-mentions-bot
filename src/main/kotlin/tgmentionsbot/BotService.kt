@@ -140,17 +140,13 @@ class BotService(
         }
     }
 
-    fun removeAlias(chatId: ChatId, groupName: GroupName, aliasName: GroupName) {
-        logger.info("Removing alias: chatId=[${chatId}], groupName=[$groupName], aliasName=[$aliasName]")
+    fun removeAlias(chatId: ChatId, aliasName: GroupName) {
+        logger.info("Removing alias: chatId=[${chatId}], aliasName=[$aliasName]")
         transactionTemplate.executeWithoutResult {
             botRepository.getChatByIdForUpdate(chatId)
-            val group = getGroupByNameOrThrow(chatId, groupName)
+            val group = getGroupByNameOrThrow(chatId, aliasName)
             val aliasesByName = botRepository.getAliasesByGroupId(group.groupId).associateBy { it.aliasName }
-            val aliasForDelete = aliasesByName[aliasName]
-                ?: throw BotReplyException.ValidationError(
-                    message = "Alias [$aliasName] is not found for group [$groupName]",
-                    userMessage = "Синоним '$aliasName' не найден для группы '$groupName'!"
-                )
+            val aliasForDelete = aliasesByName.getValue(aliasName)
             if (aliasesByName.size == 1) {
                 throw BotReplyException.ValidationError(
                     message = "Can't delete single group alias",

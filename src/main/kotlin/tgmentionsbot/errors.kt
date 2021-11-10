@@ -8,4 +8,7 @@ sealed class BotReplyException : RuntimeException() {
     data class ValidationError(override val message: String, val userMessage: String) : BotReplyException()
     data class NotFoundError(override val message: String, val userMessage: String) : BotReplyException()
     data class IntegrityViolationError(override val message: String, val userMessage: String) : BotReplyException()
+
 }
+
+data class BotParseException(override val message: String) : RuntimeException()

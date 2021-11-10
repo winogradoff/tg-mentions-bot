@@ -5,36 +5,6 @@ import org.springframework.stereotype.Component
 @Component
 class ResponseMapper {
 
-    fun toHelpResponse(): String =
-        createHTML {
-
-            bold("Пример работы с ботом:")
-            newline()
-            pre("/add_group group1"); newline()
-            pre("/add_members group1 @user1 @user2 @user3"); newline()
-            pre("/call group1"); newline()
-            newline()
-
-            text("Команда "); pre("call")
-            text(" вызовет ранее добавленных пользователей из группы "); pre("group1")
-            text(" вот в таком виде:"); newline()
-            pre("@user1 @user2 @user3")
-            newline(); newline()
-
-            bold("Доступные команды:")
-            newline()
-            for (command in Command.values()) {
-                for ((index, key) in command.keys.withIndex()) {
-                    text("/"); text(key)
-                    if (index + 1 < command.keys.size) {
-                        text(", ")
-                    }
-                }
-                text(" — "); text(command.description)
-                newline()
-            }
-        }
-
     fun toGroupsResponse(groups: List<GroupWithAliases>): String =
         createHTML {
             bold("Вот такие группы существуют:")
@@ -132,5 +102,115 @@ class ResponseMapper {
     fun toRemoveAliasResponse(aliasName: GroupName): String =
         createHTML {
             text("Синоним "); bold { escape(aliasName.value) }; text(" был успешно удалён.")
+        }
+
+    fun toHelpMessage(command: Command): String =
+        createHTML {
+
+            fun commandExample(example: String) {
+                bold("Пример использования:"); newline()
+                pre(example)
+            }
+
+            fun constrains(vararg items: Pair<String, String>) {
+                bold("Ограничения:"); newline()
+                for ((field, message) in items) {
+                    text("$field: "); pre(message); newline()
+                }
+            }
+
+            when (command) {
+                Command.HELP -> {
+                    bold("Пример работы с ботом:")
+                    newline()
+                    pre("/add_group group1"); newline()
+                    pre("/add_members group1 @user1 @user2 @user3"); newline()
+                    pre("/call group1"); newline()
+                    newline()
+
+                    text("Команда "); pre("call")
+                    text(" вызовет ранее добавленных пользователей из группы "); pre("group1")
+                    text(" вот в таком виде:"); newline()
+                    pre("@user1 @user2 @user3")
+                    newline(); newline()
+
+                    bold("Доступные команды:")
+                    newline()
+                    for (c in Command.values()) {
+                        for ((index, key) in c.keys.withIndex()) {
+                            text("/"); text(key)
+                            if (index + 1 < c.keys.size) {
+                                text(", ")
+                            }
+                        }
+                        text(" — "); text(c.description)
+                        newline()
+                    }
+                }
+
+                Command.GROUPS -> commandExample("/groups")
+
+                Command.MEMBERS -> {
+                    commandExample("/members group")
+                    newline(2)
+                    constrains("group" to BotConstraints.MESSAGE_FOR_GROUP)
+                }
+
+                Command.CALL -> {
+                    commandExample("/call group")
+                    newline(2)
+                    bold("Ограничения:"); newline()
+                    text("group: "); pre(BotConstraints.MESSAGE_FOR_GROUP)
+                }
+
+                Command.ADD_GROUP -> {
+                    commandExample("/add_group group")
+                    newline(2)
+                    constrains("group" to BotConstraints.MESSAGE_FOR_GROUP)
+                }
+
+                Command.REMOVE_GROUP -> {
+                    commandExample("/remove_group group")
+                    newline(2)
+                    constrains("group" to BotConstraints.MESSAGE_FOR_GROUP)
+                }
+
+                Command.ADD_ALIAS -> {
+                    commandExample("/add_alias group alias")
+                    newline(2)
+                    constrains(
+                        "group" to BotConstraints.MESSAGE_FOR_GROUP,
+                        "alias" to BotConstraints.MESSAGE_FOR_GROUP
+                    )
+                }
+
+                Command.REMOVE_ALIAS -> {
+                    commandExample("/remove_alias alias")
+                    newline(); newline()
+                    constrains("alias" to BotConstraints.MESSAGE_FOR_GROUP)
+                }
+
+                Command.ADD_MEMBERS -> {
+                    commandExample("/add_members group member1 member2")
+                    newline(2)
+                    constrains(
+                        "group" to BotConstraints.MESSAGE_FOR_GROUP,
+                        "member" to BotConstraints.MESSAGE_FOR_MEMBER
+                    )
+                }
+
+                Command.REMOVE_MEMBERS -> {
+                    commandExample("/remove_members group member1 member2")
+                    newline(2)
+                    constrains(
+                        "group" to BotConstraints.MESSAGE_FOR_GROUP,
+                        "member" to BotConstraints.MESSAGE_FOR_MEMBER
+                    )
+                }
+
+                Command.ENABLE_ANARCHY -> commandExample("/enable_anarchy")
+
+                Command.DISABLE_ANARCHY -> commandExample("/disable_anarchy")
+            }
         }
 }

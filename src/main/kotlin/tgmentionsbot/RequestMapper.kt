@@ -41,46 +41,24 @@ class RequestMapper {
     }
 
     fun parseGroup(message: Message): GroupName {
-        val matchResult = parseByRegex(
-            message = message,
-            pattern = BotConstraints.REGEX_CMD_GROUP,
-            userConstraintDetails = mapOf("group" to BotConstraints.MESSAGE_FOR_GROUP)
-        )
+        val matchResult = parseByRegex(message, BotConstraints.REGEX_CMD_GROUP)
         return GroupName(requireNotNull(matchResult.groups["group"]?.value))
     }
 
     fun parseGroupWithTail(message: Message): GroupName {
-        val matchResult = parseByRegex(
-            message = message,
-            pattern = BotConstraints.REGEX_CMD_GROUP_WITH_TAIL,
-            userConstraintDetails = mapOf("group" to BotConstraints.MESSAGE_FOR_GROUP)
-        )
+        val matchResult = parseByRegex(message, BotConstraints.REGEX_CMD_GROUP_WITH_TAIL)
         return GroupName(requireNotNull(matchResult.groups["group"]?.value))
     }
 
     fun parseGroupWithAlias(message: Message): Pair<GroupName, GroupName> {
-        val matchResult: MatchResult = parseByRegex(
-            message = message,
-            pattern = BotConstraints.REGEX_CMD_GROUP_ALIAS,
-            userConstraintDetails = mapOf(
-                "group" to BotConstraints.MESSAGE_FOR_GROUP,
-                "alias" to BotConstraints.MESSAGE_FOR_GROUP
-            )
-        )
+        val matchResult: MatchResult = parseByRegex(message, BotConstraints.REGEX_CMD_GROUP_ALIAS)
         val groupName = GroupName(requireNotNull(matchResult.groups["group"]?.value))
         val aliasName = GroupName(requireNotNull(matchResult.groups["alias"]?.value))
         return groupName to aliasName
     }
 
     fun parseGroupWithMembers(message: Message): Pair<GroupName, Set<Member>> {
-        val matchResult: MatchResult = parseByRegex(
-            message = message,
-            pattern = BotConstraints.REGEX_CMD_GROUP_MEMBERS,
-            userConstraintDetails = mapOf(
-                "group" to BotConstraints.MESSAGE_FOR_GROUP,
-                "username" to BotConstraints.MESSAGE_FOR_MEMBER
-            )
-        )
+        val matchResult: MatchResult = parseByRegex(message, BotConstraints.REGEX_CMD_GROUP_MEMBERS)
         val groupName = GroupName(requireNotNull(matchResult.groups["group"]?.value))
         val members: Set<Member> = (message.entities ?: emptyList())
             .asSequence()
@@ -101,18 +79,11 @@ class RequestMapper {
     private fun isBotCommand(messageEntity: MessageEntity): Boolean =
         messageEntity.offset == 0 && messageEntity.type == EntityType.BOTCOMMAND
 
-    private fun parseByRegex(
-        message: Message,
-        pattern: Regex,
-        userConstraintDetails: Map<String, String>
-    ): MatchResult =
-        pattern.matchEntire(message.text ?: message.caption)
-            ?: throw BotReplyException.ValidationError(
-                message = "Match error with pattern=[$pattern]",
-                userMessage = "Ограничения:\n" +
-                        userConstraintDetails.entries
-                            .joinToString(separator = ",\n") { "${it.key}=[${it.value}]" }
-            )
+    private fun parseByRegex(message: Message, pattern: Regex): MatchResult {
+        val input = message.text ?: message.caption
+        return pattern.matchEntire(input)
+            ?: throw BotParseException("Match error: pattern=[$pattern], input=[$input]")
+    }
 
     companion object {
         private const val CHAT_TYPE_PRIVATE = "private"

@@ -21,8 +21,8 @@ class HtmlContext {
         tags += StringEscapeUtils.escapeHtml4(s)
     }
 
-    fun newline() {
-        tags += "\n"
+    fun newline(count: Int = 1) {
+        repeat(count) { tags += "\n" }
     }
 
     fun bold(block: HtmlContext.() -> Unit) {

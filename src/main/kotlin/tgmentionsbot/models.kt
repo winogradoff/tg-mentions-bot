@@ -100,15 +100,17 @@ enum class Command(
     GROUPS(keys = setOf("groups"), description = "список групп"),
     MEMBERS(keys = setOf("members"), description = "список пользователей в группе"),
     CALL(keys = setOf("call", "c", "yo"), description = "позвать пользователей"),
-    ADD_GROUP(keys = setOf("addGroup"), description = "добавить группу"),
-    REMOVE_GROUP(keys = setOf("removeGroup"), description = "удалить группу"),
-    ADD_ALIAS(keys = setOf("addAlias"), description = "добавить синоним группы"),
-    REMOVE_ALIAS(keys = setOf("removeAlias"), description = "удалить синоним группы"),
-    ADD_MEMBERS(keys = setOf("addMembers"), description = "добавить пользователей в группу"),
-    REMOVE_MEMBERS(keys = setOf("removeMembers"), description = "удалить пользователей из конкретной группы"),
-    PURGE_MEMBERS(keys = setOf("purgeMembers"), description = "удалить пользователей из всех групп чата"),
-    ENABLE_ANARCHY(keys = setOf("enableAnarchy"), description = "всем доступны настройки"),
-    DISABLE_ANARCHY(keys = setOf("disableAnarchy"), description = "только админам доступны настройки");
+    ADD_GROUP(keys = setOf("add_group"), description = "добавить группу"),
+    REMOVE_GROUP(keys = setOf("remove_group"), description = "удалить группу"),
+    ADD_ALIAS(keys = setOf("add_alias"), description = "добавить синоним группы"),
+    REMOVE_ALIAS(keys = setOf("remove_alias"), description = "удалить синоним группы"),
+    ADD_MEMBERS(keys = setOf("add_members"), description = "добавить пользователей в группу"),
+    REMOVE_MEMBERS(keys = setOf("remove_members"), description = "удалить пользователей из конкретной группы"),
+    PURGE_MEMBERS(keys = setOf("purge_members"), description = "удалить пользователей из всех групп чата"),
+    ENABLE_ANARCHY(keys = setOf("enable_anarchy"), description = "всем доступны настройки"),
+    DISABLE_ANARCHY(keys = setOf("disable_anarchy"), description = "только админам доступны настройки");
+
+    fun firstKey(): String = keys.first()
 
     companion object {
         private val lookup: Map<String, Command> =

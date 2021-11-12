@@ -159,33 +159,17 @@ class ResponseMapper {
 
                 Command.GROUPS -> commandExample("/groups")
 
-                Command.MEMBERS -> {
-                    commandExample("/members group")
-                    newline(2)
-                    constrains("group" to BotConstraints.MESSAGE_FOR_GROUP)
-                }
-
-                Command.CALL -> {
-                    commandExample("/call group")
-                    newline(2)
-                    bold("Ограничения:"); newline()
-                    text("group: "); pre(BotConstraints.MESSAGE_FOR_GROUP)
-                }
-
-                Command.ADD_GROUP -> {
-                    commandExample("/addGroup group")
-                    newline(2)
-                    constrains("group" to BotConstraints.MESSAGE_FOR_GROUP)
-                }
-
+                Command.MEMBERS,
+                Command.CALL,
+                Command.ADD_GROUP,
                 Command.REMOVE_GROUP -> {
-                    commandExample("/removeGroup group")
+                    commandExample("/${command.firstKey()} group")
                     newline(2)
                     constrains("group" to BotConstraints.MESSAGE_FOR_GROUP)
                 }
 
                 Command.ADD_ALIAS -> {
-                    commandExample("/addAlias group alias")
+                    commandExample("/${command.firstKey()} group alias")
                     newline(2)
                     constrains(
                         "group" to BotConstraints.MESSAGE_FOR_GROUP,
@@ -194,22 +178,14 @@ class ResponseMapper {
                 }
 
                 Command.REMOVE_ALIAS -> {
-                    commandExample("/removeAlias alias")
+                    commandExample("/${command.firstKey()} alias")
                     newline(); newline()
                     constrains("alias" to BotConstraints.MESSAGE_FOR_GROUP)
                 }
 
-                Command.ADD_MEMBERS -> {
-                    commandExample("/addMembers group member1 member2")
-                    newline(2)
-                    constrains(
-                        "group" to BotConstraints.MESSAGE_FOR_GROUP,
-                        "member" to BotConstraints.MESSAGE_FOR_MEMBER
-                    )
-                }
-
+                Command.ADD_MEMBERS,
                 Command.REMOVE_MEMBERS -> {
-                    commandExample("/removeMembers group member1 member2")
+                    commandExample("/${command.firstKey()} group member1 member2")
                     newline(2)
                     constrains(
                         "group" to BotConstraints.MESSAGE_FOR_GROUP,
@@ -218,14 +194,14 @@ class ResponseMapper {
                 }
 
                 Command.PURGE_MEMBERS -> {
-                    commandExample("/purgeMembers member1 member2")
+                    commandExample("/${command.firstKey()} member1 member2")
                     newline(2)
                     constrains("member" to BotConstraints.MESSAGE_FOR_MEMBER)
                 }
 
-                Command.ENABLE_ANARCHY -> commandExample("/enable_anarchy")
+                Command.ENABLE_ANARCHY -> commandExample("/${command.firstKey()}")
 
-                Command.DISABLE_ANARCHY -> commandExample("/disable_anarchy")
+                Command.DISABLE_ANARCHY -> commandExample("/${command.firstKey()}")
             }
         }
 }

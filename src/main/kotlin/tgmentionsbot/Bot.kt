@@ -208,7 +208,7 @@ class Bot(
             for (command in Command.values()) {
                 command(
                     BotCommand.builder()
-                        .command(command.keys.first())
+                        .command(command.firstKey())
                         .description(command.description)
                         .build()
                 )

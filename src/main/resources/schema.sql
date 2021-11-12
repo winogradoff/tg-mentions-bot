@@ -33,4 +33,5 @@ create table if not exists member
 );
 
 create unique index if not exists idx_chat_group_alias on chat_group_alias (chat_id, alias_name);
-create unique index if not exists idx_member on member (group_id, member_name);
+create unique index if not exists idx_member_name on member (group_id, member_name) where user_id is null;
+create unique index if not exists idx_member_user_id on member (group_id, user_id) where user_id is not null;

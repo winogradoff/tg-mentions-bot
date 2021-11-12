@@ -78,7 +78,10 @@ class BotService(
         transactionTemplate.executeWithoutResult {
             val group = getGroupByNameOrThrow(chatId, groupName)
             members.forEach { member ->
-                botRepository.removeMemberByName(group.groupId, member.memberName)
+                when {
+                    member.userId != null -> botRepository.removeMemberByUserId(group.groupId, member.userId)
+                    else -> botRepository.removeMemberByName(group.groupId, member.memberName)
+                }
             }
         }
     }
@@ -192,12 +195,18 @@ class BotService(
         }
     }
 
-    private fun verifyMemberDoesNotExistsYet(existingMembers: List<Member>, member: Member) {
-        if (existingMembers.any { it.memberName == member.memberName }) {
-            throw BotReplyException.IntegrityViolationError(
-                message = "Member [${member.memberName}] already exists!",
-                userMessage = "Такой пользователь уже существует!"
-            )
+    private fun verifyMemberDoesNotExistsYet(oldMembers: List<Member>, newMember: Member) {
+        for (oldMember in oldMembers) {
+            val isSameMember: Boolean = when {
+                oldMember.userId != null && newMember.userId != null -> oldMember.userId == newMember.userId
+                else -> oldMember.memberName == newMember.memberName
+            }
+            if (isSameMember) {
+                throw BotReplyException.IntegrityViolationError(
+                    message = "Member already exists: newMember=[$newMember], oldMember=[$oldMember]",
+                    userMessage = "Такой пользователь уже существует!"
+                )
+            }
         }
     }
 

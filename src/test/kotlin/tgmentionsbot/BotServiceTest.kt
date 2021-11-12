@@ -207,8 +207,12 @@ internal class BotServiceTest {
             // given
             val groupId = GroupId(456)
             val groupName = GroupName("qwe")
+
             val member1 = Member(memberName = MemberName("aaa"))
             val member2 = Member(memberName = MemberName("bbb"))
+
+            val userId3 = UserId(111)
+            val member3 = Member(memberName = MemberName("bbb"), userId = userId3)
 
             every {
                 botRepository.getAliasByName(chatId = chatId, aliasName = groupName)
@@ -223,12 +227,13 @@ internal class BotServiceTest {
             botService.removeMembers(
                 chatId = chatId,
                 groupName = groupName,
-                members = setOf(member1, member2)
+                members = setOf(member1, member2, member3)
             )
 
             // then
             verify { botRepository.removeMemberByName(groupId = groupId, memberName = member1.memberName) }
             verify { botRepository.removeMemberByName(groupId = groupId, memberName = member2.memberName) }
+            verify { botRepository.removeMemberByUserId(groupId, userId3) }
         }
     }
 

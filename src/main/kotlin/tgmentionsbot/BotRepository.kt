@@ -172,18 +172,6 @@ class BotRepository(private val jdbcTemplate: NamedParameterJdbcTemplate) {
         ).checkUpdateCount(1)
     }
 
-    fun setAnarchyStatus(chatId: ChatId, isAnarchyEnabled: Boolean) {
-        logger.info("Setting anarchy status: chatId=[$chatId], isAnarchyEnabled=[$isAnarchyEnabled]")
-        jdbcTemplate.update(
-            """
-                update chat
-                set is_anarchy_enabled = :is_anarchy_enabled
-                where chat_id = :chat_id
-            """.trimIndent(),
-            mapOf("chat_id" to chatId.value, "is_anarchy_enabled" to isAnarchyEnabled)
-        ).checkUpdateCount(1)
-    }
-
     fun addMember(groupId: GroupId, member: Member) {
         logger.info("Adding member to group: groupId=[$groupId], member=[$member]")
         jdbcTemplate.update(
@@ -202,7 +190,7 @@ class BotRepository(private val jdbcTemplate: NamedParameterJdbcTemplate) {
     }
 
     fun removeMemberByName(groupId: GroupId, memberName: MemberName) {
-        logger.info("Adding member to group: groupId=[$groupId], memberName=[$memberName]")
+        logger.info("Removing member: groupId=[$groupId], memberName=[$memberName]")
         jdbcTemplate.update(
             """
                 delete from member
@@ -212,6 +200,21 @@ class BotRepository(private val jdbcTemplate: NamedParameterJdbcTemplate) {
             mapOf(
                 "group_id" to groupId.value,
                 "member_name" to memberName.value
+            )
+        ).checkUpdateCount(1)
+    }
+
+    fun removeMemberByUserId(groupId: GroupId, userId: UserId) {
+        logger.info("Removing member: groupId=[$groupId], userId=[$userId]")
+        jdbcTemplate.update(
+            """
+                delete from member
+                where group_id = :group_id
+                and user_id = :user_id
+            """.trimIndent(),
+            mapOf(
+                "group_id" to groupId.value,
+                "user_id" to userId.value
             )
         ).checkUpdateCount(1)
     }
@@ -227,6 +230,18 @@ class BotRepository(private val jdbcTemplate: NamedParameterJdbcTemplate) {
             mapOf("chat_id" to chatId.value)
         ) { rs, _ -> rs.getBoolean("is_anarchy_enabled") }
         return result.isEmpty() || result.single()
+    }
+
+    fun setAnarchyStatus(chatId: ChatId, isAnarchyEnabled: Boolean) {
+        logger.info("Setting anarchy status: chatId=[$chatId], isAnarchyEnabled=[$isAnarchyEnabled]")
+        jdbcTemplate.update(
+            """
+                update chat
+                set is_anarchy_enabled = :is_anarchy_enabled
+                where chat_id = :chat_id
+            """.trimIndent(),
+            mapOf("chat_id" to chatId.value, "is_anarchy_enabled" to isAnarchyEnabled)
+        ).checkUpdateCount(1)
     }
 
     private fun Int.checkUpdateCount(expected: Int) =

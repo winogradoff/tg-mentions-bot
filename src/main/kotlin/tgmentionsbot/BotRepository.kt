@@ -218,7 +218,7 @@ class BotRepository(private val jdbcTemplate: NamedParameterJdbcTemplate) {
             )
         ).checkUpdateCount(1)
     }
-    
+
     fun removeMemberFromChatByName(chatId: ChatId, memberName: MemberName) {
         logger.info("Removing member from chat: chatId=[$chatId], memberName=[$memberName]")
         jdbcTemplate.update(
@@ -231,7 +231,7 @@ class BotRepository(private val jdbcTemplate: NamedParameterJdbcTemplate) {
                 "chat_id" to chatId.value,
                 "member_name" to memberName.value
             )
-        ).checkUpdateCount(1)
+        )
     }
 
     fun removeMemberFromChatByUserId(chatId: ChatId, userId: UserId) {
@@ -246,7 +246,7 @@ class BotRepository(private val jdbcTemplate: NamedParameterJdbcTemplate) {
                 "chat_id" to chatId.value,
                 "user_id" to userId.value
             )
-        ).checkUpdateCount(1)
+        )
     }
 
     fun isAnarchyEnabled(chatId: ChatId): Boolean {

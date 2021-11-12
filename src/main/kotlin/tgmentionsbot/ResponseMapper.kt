@@ -173,19 +173,19 @@ class ResponseMapper {
                 }
 
                 Command.ADD_GROUP -> {
-                    commandExample("/add_group group")
+                    commandExample("/addGroup group")
                     newline(2)
                     constrains("group" to BotConstraints.MESSAGE_FOR_GROUP)
                 }
 
                 Command.REMOVE_GROUP -> {
-                    commandExample("/remove_group group")
+                    commandExample("/removeGroup group")
                     newline(2)
                     constrains("group" to BotConstraints.MESSAGE_FOR_GROUP)
                 }
 
                 Command.ADD_ALIAS -> {
-                    commandExample("/add_alias group alias")
+                    commandExample("/addAlias group alias")
                     newline(2)
                     constrains(
                         "group" to BotConstraints.MESSAGE_FOR_GROUP,
@@ -194,13 +194,13 @@ class ResponseMapper {
                 }
 
                 Command.REMOVE_ALIAS -> {
-                    commandExample("/remove_alias alias")
+                    commandExample("/removeAlias alias")
                     newline(); newline()
                     constrains("alias" to BotConstraints.MESSAGE_FOR_GROUP)
                 }
 
                 Command.ADD_MEMBERS -> {
-                    commandExample("/add_members group member1 member2")
+                    commandExample("/addMembers group member1 member2")
                     newline(2)
                     constrains(
                         "group" to BotConstraints.MESSAGE_FOR_GROUP,
@@ -209,12 +209,18 @@ class ResponseMapper {
                 }
 
                 Command.REMOVE_MEMBERS -> {
-                    commandExample("/remove_members group member1 member2")
+                    commandExample("/removeMembers group member1 member2")
                     newline(2)
                     constrains(
                         "group" to BotConstraints.MESSAGE_FOR_GROUP,
                         "member" to BotConstraints.MESSAGE_FOR_MEMBER
                     )
+                }
+
+                Command.PURGE_MEMBERS -> {
+                    commandExample("/purgeMembers member1 member2")
+                    newline(2)
+                    constrains("member" to BotConstraints.MESSAGE_FOR_MEMBER)
                 }
 
                 Command.ENABLE_ANARCHY -> commandExample("/enable_anarchy")

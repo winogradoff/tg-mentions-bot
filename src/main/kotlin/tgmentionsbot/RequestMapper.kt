@@ -73,6 +73,20 @@ class RequestMapper {
         return groupName to members
     }
 
+    fun parseMembers(message: Message): Set<Member> {
+        parseByRegex(message, BotConstraints.REGEX_CMD_MEMBERS)
+        return (message.entities ?: emptyList())
+            .asSequence()
+            .mapNotNull {
+                when (it.type) {
+                    EntityType.MENTION -> Member(memberName = MemberName(it.text))
+                    EntityType.TEXTMENTION -> Member(memberName = MemberName(it.text), userId = UserId(it.user.id))
+                    else -> null
+                }
+            }
+            .toSet()
+    }
+
     private fun getAnyMessageEntities(message: Message): List<MessageEntity> =
         message.entities ?: message.captionEntities ?: emptyList()
 

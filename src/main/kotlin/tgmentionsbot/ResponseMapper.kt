@@ -87,6 +87,15 @@ class ResponseMapper {
             }
         }
 
+    fun toPurgeMembersResponse(members: Set<Member>): String =
+        createHTML {
+            text("Пользователи удалённые из всех групп чата:"); newline()
+            for (member in members) {
+                pre { text("- "); escape(member.memberName.value) }
+                newline()
+            }
+        }
+
     fun toAddGroupResponse(groupName: GroupName): String =
         createHTML {
             text("Группа "); bold { escape(groupName.value) }; text(" добавлена!")

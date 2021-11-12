@@ -40,12 +40,7 @@ class BotService(
 
     fun addMembers(chatId: ChatId, groupName: GroupName, newMembers: Set<Member>) {
         logger.info("Adding members: chatId=[${chatId}], groupName=[$groupName], newMembers=[$newMembers]")
-        if (newMembers.isEmpty()) {
-            throw BotReplyException.ValidationError(
-                message = "List of members is empty",
-                userMessage = "Нужно указать хотя бы одного пользователя!"
-            )
-        }
+        checkMembersNotEmpty(newMembers)
         transactionTemplate.executeWithoutResult {
             botRepository.getChatByIdForUpdate(chatId)
             val group = getGroupByNameOrThrow(chatId, groupName)
@@ -67,20 +62,28 @@ class BotService(
         }
     }
 
-    fun removeMembers(chatId: ChatId, groupName: GroupName, members: Set<Member>) {
+    fun removeMembersFromGroup(chatId: ChatId, groupName: GroupName, members: Set<Member>) {
         logger.info("Removing members: chatId=[${chatId}], groupName=[$groupName], members=[$members]")
-        if (members.isEmpty()) {
-            throw BotReplyException.ValidationError(
-                message = "List of members is empty",
-                userMessage = "Нужно указать хотя бы одного пользователя!"
-            )
-        }
+        checkMembersNotEmpty(members)
         transactionTemplate.executeWithoutResult {
             val group = getGroupByNameOrThrow(chatId, groupName)
             members.forEach { member ->
                 when {
-                    member.userId != null -> botRepository.removeMemberByUserId(group.groupId, member.userId)
-                    else -> botRepository.removeMemberByName(group.groupId, member.memberName)
+                    member.userId != null -> botRepository.removeMemberFromGroupByUserId(group.groupId, member.userId)
+                    else -> botRepository.removeMemberFromGroupByName(group.groupId, member.memberName)
+                }
+            }
+        }
+    }
+
+    fun removeMembersFromChat(chatId: ChatId, members: Set<Member>) {
+        logger.info("Purging members: chatId=[${chatId}], members=[$members]")
+        checkMembersNotEmpty(members)
+        transactionTemplate.executeWithoutResult {
+            members.forEach { member ->
+                when {
+                    member.userId != null -> botRepository.removeMemberFromChatByUserId(chatId, member.userId)
+                    else -> botRepository.removeMemberFromChatByName(chatId, member.memberName)
                 }
             }
         }
@@ -222,6 +225,15 @@ class BotService(
             throw BotReplyException.NotFoundError(
                 message = "Group list is empty",
                 userMessage = "Нет ни одной группы."
+            )
+        }
+    }
+
+    private fun checkMembersNotEmpty(members: Set<Member>) {
+        if (members.isEmpty()) {
+            throw BotReplyException.ValidationError(
+                message = "List of members is empty",
+                userMessage = "Нужно указать хотя бы одного пользователя!"
             )
         }
     }

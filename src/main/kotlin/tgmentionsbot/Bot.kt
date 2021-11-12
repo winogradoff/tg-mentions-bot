@@ -157,8 +157,19 @@ class Bot(
             grant = Grant.WRITE_ACCESS,
             handler = {
                 val (groupName: GroupName, members: Set<Member>) = requestMapper.parseGroupWithMembers(message)
-                botService.removeMembers(chatId = chat.chatId, groupName = groupName, members = members)
+                botService.removeMembersFromGroup(chatId = chat.chatId, groupName = groupName, members = members)
                 sendReply(message, responseMapper.toRemoveMembersResponse(groupName, members))
+            }
+        )
+
+        PURGE_MEMBERS -> handleCommand(
+            command = command,
+            message = message,
+            grant = Grant.WRITE_ACCESS,
+            handler = {
+                val members: Set<Member> = requestMapper.parseMembers(message)
+                botService.removeMembersFromChat(chatId = chat.chatId, members = members)
+                sendReply(message, responseMapper.toPurgeMembersResponse(members))
             }
         )
 
@@ -195,14 +206,12 @@ class Bot(
     private fun setBotCommands() {
         val setMyCommands = with(SetMyCommands.builder()) {
             for (command in Command.values()) {
-                for (key in command.keys) {
-                    command(
-                        BotCommand.builder()
-                            .command(key)
-                            .description(command.description)
-                            .build()
-                    )
-                }
+                command(
+                    BotCommand.builder()
+                        .command(command.keys.first())
+                        .description(command.description)
+                        .build()
+                )
             }
             build()
         }

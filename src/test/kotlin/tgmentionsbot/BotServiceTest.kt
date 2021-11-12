@@ -200,7 +200,7 @@ internal class BotServiceTest {
     }
 
     @Nested
-    inner class `removeMembers - tests` {
+    inner class `removeMembersFromGroup - tests` {
 
         @Test
         fun positive() {
@@ -224,16 +224,41 @@ internal class BotServiceTest {
             )
 
             // when
-            botService.removeMembers(
+            botService.removeMembersFromGroup(
                 chatId = chatId,
                 groupName = groupName,
                 members = setOf(member1, member2, member3)
             )
 
             // then
-            verify { botRepository.removeMemberByName(groupId = groupId, memberName = member1.memberName) }
-            verify { botRepository.removeMemberByName(groupId = groupId, memberName = member2.memberName) }
-            verify { botRepository.removeMemberByUserId(groupId, userId3) }
+            verify { botRepository.removeMemberFromGroupByName(groupId = groupId, memberName = member1.memberName) }
+            verify { botRepository.removeMemberFromGroupByName(groupId = groupId, memberName = member2.memberName) }
+            verify { botRepository.removeMemberFromGroupByUserId(groupId, userId3) }
+        }
+    }
+
+    @Nested
+    inner class `removeMembersFromChat - tests` {
+
+        @Test
+        fun positive() {
+            // given
+            val member1 = Member(memberName = MemberName("aaa"))
+            val member2 = Member(memberName = MemberName("bbb"))
+
+            val userId3 = UserId(111)
+            val member3 = Member(memberName = MemberName("bbb"), userId = userId3)
+
+            // when
+            botService.removeMembersFromChat(
+                chatId = chatId,
+                members = setOf(member1, member2, member3)
+            )
+
+            // then
+            verify { botRepository.removeMemberFromChatByName(chatId, member1.memberName) }
+            verify { botRepository.removeMemberFromChatByName(chatId, member2.memberName) }
+            verify { botRepository.removeMemberFromChatByUserId(chatId, userId3) }
         }
     }
 

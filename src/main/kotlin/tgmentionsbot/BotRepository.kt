@@ -189,8 +189,8 @@ class BotRepository(private val jdbcTemplate: NamedParameterJdbcTemplate) {
         ).checkUpdateCount(1)
     }
 
-    fun removeMemberByName(groupId: GroupId, memberName: MemberName) {
-        logger.info("Removing member: groupId=[$groupId], memberName=[$memberName]")
+    fun removeMemberFromGroupByName(groupId: GroupId, memberName: MemberName) {
+        logger.info("Removing member from group: groupId=[$groupId], memberName=[$memberName]")
         jdbcTemplate.update(
             """
                 delete from member
@@ -204,8 +204,8 @@ class BotRepository(private val jdbcTemplate: NamedParameterJdbcTemplate) {
         ).checkUpdateCount(1)
     }
 
-    fun removeMemberByUserId(groupId: GroupId, userId: UserId) {
-        logger.info("Removing member: groupId=[$groupId], userId=[$userId]")
+    fun removeMemberFromGroupByUserId(groupId: GroupId, userId: UserId) {
+        logger.info("Removing member from group: groupId=[$groupId], userId=[$userId]")
         jdbcTemplate.update(
             """
                 delete from member
@@ -214,6 +214,36 @@ class BotRepository(private val jdbcTemplate: NamedParameterJdbcTemplate) {
             """.trimIndent(),
             mapOf(
                 "group_id" to groupId.value,
+                "user_id" to userId.value
+            )
+        ).checkUpdateCount(1)
+    }
+    
+    fun removeMemberFromChatByName(chatId: ChatId, memberName: MemberName) {
+        logger.info("Removing member from chat: chatId=[$chatId], memberName=[$memberName]")
+        jdbcTemplate.update(
+            """
+                delete from member m
+                where m.member_name = :member_name
+                and m.group_id in (select cg.group_id from chat_group cg where cg.chat_id = :chat_id)
+            """.trimIndent(),
+            mapOf(
+                "chat_id" to chatId.value,
+                "member_name" to memberName.value
+            )
+        ).checkUpdateCount(1)
+    }
+
+    fun removeMemberFromChatByUserId(chatId: ChatId, userId: UserId) {
+        logger.info("Removing member from chat: chatId=[$chatId], userId=[$userId]")
+        jdbcTemplate.update(
+            """
+                delete from member m
+                where m.user_id = :user_id
+                and m.group_id in (select cg.group_id from chat_group cg where cg.chat_id = :chat_id)
+            """.trimIndent(),
+            mapOf(
+                "chat_id" to chatId.value,
                 "user_id" to userId.value
             )
         ).checkUpdateCount(1)

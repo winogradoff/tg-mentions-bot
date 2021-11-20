@@ -44,9 +44,7 @@ class Bot(
             null -> logger.warn("Unknown command: [$updateMessage]")
             else -> {
                 logger.info("Command: [$command]")
-                catchException(updateMessage) {
-                    routeCommand(command = command, message = updateMessage)
-                }
+                routeCommand(command = command, message = updateMessage)
             }
         }
     }

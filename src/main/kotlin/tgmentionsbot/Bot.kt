@@ -45,153 +45,153 @@ class Bot(
             else -> {
                 logger.info("Command: [$command]")
                 catchException(updateMessage) {
-                    routeCommand(
-                        command = command,
-                        message = updateMessage,
-                        chat = Chat(
-                            chatId = ChatId(updateMessage.chatId),
-                            chatTitle = updateMessage.chat.title,
-                            chatUserName = updateMessage.chat.userName
-                        )
-                    )
+                    routeCommand(command = command, message = updateMessage)
                 }
             }
         }
     }
 
-    private fun routeCommand(command: Command, message: Message, chat: Chat) = when (command) {
+    private fun routeCommand(command: Command, message: Message) = catchException(message) {
+        val chat = Chat(
+            chatId = ChatId(message.chatId),
+            chatTitle = message.chat.title,
+            chatUserName = message.chat.userName
+        )
 
-        HELP -> {
-            checkAccess(message, Grant.READ_ACCESS)
-            sendReply(message, responseMapper.toHelpMessage(command))
+        when (command) {
+
+            HELP -> {
+                checkAccess(message, Grant.READ_ACCESS)
+                sendReply(message, responseMapper.toHelpMessage(command))
+            }
+
+            GROUPS -> handleCommand(
+                command = command,
+                message = message,
+                grant = Grant.READ_ACCESS,
+                handler = {
+                    sendReply(message, responseMapper.toGroupsResponse(botService.getGroups(chat.chatId)))
+                }
+            )
+
+            MEMBERS -> handleCommand(
+                command = command,
+                message = message,
+                grant = Grant.READ_ACCESS,
+                handler = {
+                    val groupName = requestMapper.parseGroup(message)
+                    val members = botService.getMembers(chatId = chat.chatId, groupName = groupName)
+                    sendReply(message, responseMapper.toMembersResponse(groupName, members))
+                }
+            )
+
+            CALL -> handleCommand(
+                command = command,
+                message = message,
+                grant = Grant.READ_ACCESS,
+                handler = {
+                    val groupName = requestMapper.parseGroupWithTail(message)
+                    val members = botService.getMembers(chatId = chat.chatId, groupName = groupName)
+                    sendReply(message, responseMapper.toCallResponse(groupName, members))
+                }
+            )
+
+            ADD_GROUP -> handleCommand(
+                command = command,
+                message = message,
+                grant = Grant.WRITE_ACCESS,
+                handler = {
+                    val groupName = requestMapper.parseGroup(message)
+                    botService.addGroup(chat = chat, groupName = groupName)
+                    sendReply(message, responseMapper.toAddGroupResponse(groupName))
+                }
+            )
+
+            REMOVE_GROUP -> handleCommand(
+                command = command,
+                message = message,
+                grant = Grant.WRITE_ACCESS,
+                handler = {
+                    botService.removeGroup(chatId = chat.chatId, groupName = requestMapper.parseGroup(message))
+                    sendReply(message, "Группа удалена.")
+                }
+            )
+
+            ADD_ALIAS -> handleCommand(
+                command = command,
+                message = message,
+                grant = Grant.WRITE_ACCESS,
+                handler = {
+                    val (groupName: GroupName, aliasName: GroupName) = requestMapper.parseGroupWithAlias(message)
+                    botService.addAlias(chatId = chat.chatId, groupName = groupName, aliasName = aliasName)
+                    sendReply(message, responseMapper.toAddAliasResponse(groupName, aliasName))
+                }
+            )
+
+            REMOVE_ALIAS -> handleCommand(
+                command = command,
+                message = message,
+                grant = Grant.WRITE_ACCESS,
+                handler = {
+                    val aliasName = requestMapper.parseGroup(message)
+                    botService.removeAlias(chatId = chat.chatId, aliasName = aliasName)
+                    sendReply(message, responseMapper.toRemoveAliasResponse(aliasName))
+                }
+            )
+
+            ADD_MEMBERS -> handleCommand(
+                command = command,
+                message = message,
+                grant = Grant.WRITE_ACCESS,
+                handler = {
+                    val (groupName: GroupName, members: Set<Member>) = requestMapper.parseGroupWithMembers(message)
+                    botService.addMembers(chatId = chat.chatId, groupName = groupName, newMembers = members)
+                    sendReply(message, responseMapper.toAddMembersResponse(groupName, members))
+                }
+            )
+
+            REMOVE_MEMBERS -> handleCommand(
+                command = command,
+                message = message,
+                grant = Grant.WRITE_ACCESS,
+                handler = {
+                    val (groupName: GroupName, members: Set<Member>) = requestMapper.parseGroupWithMembers(message)
+                    botService.removeMembersFromGroup(chatId = chat.chatId, groupName = groupName, members = members)
+                    sendReply(message, responseMapper.toRemoveMembersResponse(groupName, members))
+                }
+            )
+
+            PURGE_MEMBERS -> handleCommand(
+                command = command,
+                message = message,
+                grant = Grant.WRITE_ACCESS,
+                handler = {
+                    val members: Set<Member> = requestMapper.parseMembers(message)
+                    botService.removeMembersFromChat(chatId = chat.chatId, members = members)
+                    sendReply(message, responseMapper.toPurgeMembersResponse(members))
+                }
+            )
+
+            ENABLE_ANARCHY -> handleCommand(
+                command = command,
+                message = message,
+                grant = Grant.CHANGE_CHAT_SETTINGS,
+                handler = {
+                    botService.enableAnarchy(chat.chatId)
+                    sendReply(message, "Анархия включена. Все пользователи могут настраивать бота.")
+                }
+            )
+
+            DISABLE_ANARCHY -> handleCommand(
+                command = command,
+                message = message,
+                grant = Grant.CHANGE_CHAT_SETTINGS,
+                handler = {
+                    botService.disableAnarchy(chat.chatId)
+                    sendReply(message, "Анархия выключена. Только администраторы могут настраивать бота.")
+                }
+            )
         }
-
-        GROUPS -> handleCommand(
-            command = command,
-            message = message,
-            grant = Grant.READ_ACCESS,
-            handler = {
-                sendReply(message, responseMapper.toGroupsResponse(botService.getGroups(chat.chatId)))
-            }
-        )
-
-        MEMBERS -> handleCommand(
-            command = command,
-            message = message,
-            grant = Grant.READ_ACCESS,
-            handler = {
-                val groupName = requestMapper.parseGroup(message)
-                val members = botService.getMembers(chatId = chat.chatId, groupName = groupName)
-                sendReply(message, responseMapper.toMembersResponse(groupName, members))
-            }
-        )
-
-        CALL -> handleCommand(
-            command = command,
-            message = message,
-            grant = Grant.READ_ACCESS,
-            handler = {
-                val groupName = requestMapper.parseGroupWithTail(message)
-                val members = botService.getMembers(chatId = chat.chatId, groupName = groupName)
-                sendReply(message, responseMapper.toCallResponse(groupName, members))
-            }
-        )
-
-        ADD_GROUP -> handleCommand(
-            command = command,
-            message = message,
-            grant = Grant.WRITE_ACCESS,
-            handler = {
-                val groupName = requestMapper.parseGroup(message)
-                botService.addGroup(chat = chat, groupName = groupName)
-                sendReply(message, responseMapper.toAddGroupResponse(groupName))
-            }
-        )
-
-        REMOVE_GROUP -> handleCommand(
-            command = command,
-            message = message,
-            grant = Grant.WRITE_ACCESS,
-            handler = {
-                botService.removeGroup(chatId = chat.chatId, groupName = requestMapper.parseGroup(message))
-                sendReply(message, "Группа удалена.")
-            }
-        )
-
-        ADD_ALIAS -> handleCommand(
-            command = command,
-            message = message,
-            grant = Grant.WRITE_ACCESS,
-            handler = {
-                val (groupName: GroupName, aliasName: GroupName) = requestMapper.parseGroupWithAlias(message)
-                botService.addAlias(chatId = chat.chatId, groupName = groupName, aliasName = aliasName)
-                sendReply(message, responseMapper.toAddAliasResponse(groupName, aliasName))
-            }
-        )
-
-        REMOVE_ALIAS -> handleCommand(
-            command = command,
-            message = message,
-            grant = Grant.WRITE_ACCESS,
-            handler = {
-                val aliasName = requestMapper.parseGroup(message)
-                botService.removeAlias(chatId = chat.chatId, aliasName = aliasName)
-                sendReply(message, responseMapper.toRemoveAliasResponse(aliasName))
-            }
-        )
-
-        ADD_MEMBERS -> handleCommand(
-            command = command,
-            message = message,
-            grant = Grant.WRITE_ACCESS,
-            handler = {
-                val (groupName: GroupName, members: Set<Member>) = requestMapper.parseGroupWithMembers(message)
-                botService.addMembers(chatId = chat.chatId, groupName = groupName, newMembers = members)
-                sendReply(message, responseMapper.toAddMembersResponse(groupName, members))
-            }
-        )
-
-        REMOVE_MEMBERS -> handleCommand(
-            command = command,
-            message = message,
-            grant = Grant.WRITE_ACCESS,
-            handler = {
-                val (groupName: GroupName, members: Set<Member>) = requestMapper.parseGroupWithMembers(message)
-                botService.removeMembersFromGroup(chatId = chat.chatId, groupName = groupName, members = members)
-                sendReply(message, responseMapper.toRemoveMembersResponse(groupName, members))
-            }
-        )
-
-        PURGE_MEMBERS -> handleCommand(
-            command = command,
-            message = message,
-            grant = Grant.WRITE_ACCESS,
-            handler = {
-                val members: Set<Member> = requestMapper.parseMembers(message)
-                botService.removeMembersFromChat(chatId = chat.chatId, members = members)
-                sendReply(message, responseMapper.toPurgeMembersResponse(members))
-            }
-        )
-
-        ENABLE_ANARCHY -> handleCommand(
-            command = command,
-            message = message,
-            grant = Grant.CHANGE_CHAT_SETTINGS,
-            handler = {
-                botService.enableAnarchy(chat.chatId)
-                sendReply(message, "Анархия включена. Все пользователи могут настраивать бота.")
-            }
-        )
-
-        DISABLE_ANARCHY -> handleCommand(
-            command = command,
-            message = message,
-            grant = Grant.CHANGE_CHAT_SETTINGS,
-            handler = {
-                botService.disableAnarchy(chat.chatId)
-                sendReply(message, "Анархия выключена. Только администраторы могут настраивать бота.")
-            }
-        )
     }
 
     private fun handleCommand(command: Command, message: Message, grant: Grant, handler: () -> Unit) {
@@ -254,13 +254,13 @@ class Bot(
                 .also { request -> request.chatId = message.chat.id.toString() }
         )
 
-    private fun catchException(originalMessage: Message, block: () -> Unit) =
+    private fun catchException(message: Message, block: () -> Unit) =
         suppressException {
             try {
                 block()
             } catch (ex: BotReplyException) {
                 sendReply(
-                    message = originalMessage,
+                    message = message,
                     replyText = when (ex) {
                         is BotReplyException.ValidationError -> {
                             logger.warn("Validation error: ${ex.message}")
@@ -285,7 +285,7 @@ class Bot(
                 )
             } catch (ex: Exception) {
                 logger.error("Unexpected error", ex)
-                sendReply(originalMessage, "Что-то пошло не так...")
+                sendReply(message, "Что-то пошло не так...")
             }
         }
 

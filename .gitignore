@@ -34,3 +34,6 @@ target/
 
 # macOS
 .DS_Store
+
+# Flyway config
+flyway*.conf

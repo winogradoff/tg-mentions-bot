@@ -60,3 +60,32 @@ Telegram-бот для упоминания пользователей по на
 /call qqq
 /call group1 какое-то сообщение
 ```
+
+### База данных
+
+1) поднять локально docker-контейнер с БД:
+
+```shell
+docker-compose up -d
+```
+
+2) создать конфиг для FlyWay и сохранить его в файл `flyway.dev.conf`:
+
+```conf
+flyway.url=jdbc:postgresql://localhost:5432/db
+flyway.user=user
+flyway.password=pass
+flyway.locations=src/main/resources/db/migration
+```
+
+3) выполнить для создания всех нужных таблиц:
+
+```shell
+flyway -configFiles=./flyway.dev.conf migrate
+```
+
+4) остановить и удалить docker-контейнер с БД:
+
+```shell
+docker-compose rm -s
+```

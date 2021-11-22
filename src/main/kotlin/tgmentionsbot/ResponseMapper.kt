@@ -128,6 +128,19 @@ class ResponseMapper {
                 }
             }
 
+            fun printCommands(commands: List<Command>) {
+                for (c in commands) {
+                    for ((index, key) in c.keys.withIndex()) {
+                        text("/"); text(key)
+                        if (index + 1 < c.keys.size) {
+                            text(", ")
+                        }
+                    }
+                    text(" — "); text(c.description)
+                    newline()
+                }
+            }
+
             when (command) {
                 Command.HELP -> {
                     bold("Пример работы с ботом:")
@@ -143,18 +156,13 @@ class ResponseMapper {
                     pre("@user1 @user2 @user3")
                     newline(); newline()
 
-                    bold("Доступные команды:")
+                    bold("Общие команды:")
                     newline()
-                    for (c in Command.values()) {
-                        for ((index, key) in c.keys.withIndex()) {
-                            text("/"); text(key)
-                            if (index + 1 < c.keys.size) {
-                                text(", ")
-                            }
-                        }
-                        text(" — "); text(c.description)
-                        newline()
-                    }
+                    printCommands(Command.values().filter { it.access() == Command.Access.COMMON })
+
+                    bold("Административные команды:")
+                    newline()
+                    printCommands(Command.values().filter { it.access() == Command.Access.ADMIN })
                 }
 
                 Command.GROUPS -> commandExample("/groups")

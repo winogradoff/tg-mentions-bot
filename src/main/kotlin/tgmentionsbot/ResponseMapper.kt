@@ -159,7 +159,8 @@ class ResponseMapper {
                     bold("Общие команды:")
                     newline()
                     printCommands(Command.values().filter { it.access() == Command.Access.COMMON })
-
+                    newline()
+                    
                     bold("Административные команды:")
                     newline()
                     printCommands(Command.values().filter { it.access() == Command.Access.ADMIN })

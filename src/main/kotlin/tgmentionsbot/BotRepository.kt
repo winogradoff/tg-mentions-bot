@@ -161,6 +161,25 @@ class BotRepository(private val jdbcTemplate: NamedParameterJdbcTemplate) {
         }
     }
 
+    fun getMembersByChatId(chatId: ChatId): List<Member> {
+        logger.info("Getting members by chatId=[$chatId]")
+        return jdbcTemplate.query(
+            """
+                select m.member_id, m.member_name, m.user_id
+                from member m
+                join chat_group cg on cg.group_id = m.group_id
+                where cg.chat_id = :chat_id
+            """.trimIndent(),
+            mapOf("chat_id" to chatId.value)
+        ) { rs, _ ->
+            Member(
+                memberName = MemberName(rs.getString("member_name")),
+                memberId = rs.getLongOrNull("member_id")?.let { MemberId(it) },
+                userId = rs.getLongOrNull("user_id")?.let { UserId(it) }
+            )
+        }
+    }
+
     fun removeGroupById(groupId: GroupId) {
         logger.info("Removing group by groupId=[$groupId]")
         jdbcTemplate.update(

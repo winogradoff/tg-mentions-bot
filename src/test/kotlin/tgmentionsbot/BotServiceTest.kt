@@ -99,6 +99,31 @@ internal class BotServiceTest {
             // then
             assertThat(members).containsExactlyInAnyOrder(member1, member2)
         }
+
+        @Test
+        fun `positive - group=all`() {
+            // given
+            val groupName = GroupName("all")
+            val groupId = GroupId(123)
+            val groupAlias = GroupAlias(
+                chatId = chatId,
+                groupId = groupId,
+                aliasName = groupName,
+                aliasId = AliasId(456)
+            )
+            val member1 = Member(memberId = MemberId(1), memberName = MemberName("aaa"), userId = UserId(111))
+            val member2 = Member(memberId = MemberId(2), memberName = MemberName("bbb"), userId = UserId(222))
+
+            every { botRepository.getAliasByName(chatId = chatId, aliasName = groupName) } returns groupAlias
+            every { botRepository.getMembersByGroupId(groupId = groupId) } returns listOf(member1)
+            every { botRepository.getMembersByChatId(chatId = chatId) } returns listOf(member1, member2)
+
+            // when
+            val members = botService.getMembers(chatId = chatId, groupName = groupName)
+
+            // then
+            assertThat(members).containsExactlyInAnyOrder(member1, member2)
+        }
     }
 
     @Nested

@@ -31,11 +31,14 @@ class BotService(
         logger.info("Getting members: chatId=[${chatId}], groupName=[${groupName}]")
         return checkNotNull(
             transactionTemplate.execute {
-                val group = getGroupByNameOrThrow(chatId, groupName)
-                botRepository.getMembersByGroupId(group.groupId)
-                    .sortedBy { it.memberName.value }
+                if (groupName.value in ALL_MEMBERS_GROUPS) {
+                    botRepository.getMembersByChatId(chatId).distinct()
+                } else {
+                    val group = getGroupByNameOrThrow(chatId, groupName)
+                    botRepository.getMembersByGroupId(group.groupId)
+                }
             }
-        )
+        ).sortedBy { it.memberName.value }
     }
 
     fun addMembers(chatId: ChatId, groupName: GroupName, newMembers: Set<Member>) {
@@ -236,5 +239,12 @@ class BotService(
                 userMessage = "Нужно указать хотя бы одного пользователя!"
             )
         }
+    }
+
+    companion object {
+        private val ALL_MEMBERS_GROUPS: Set<String> = setOf(
+            "all", "все",
+            "everyone"
+        )
     }
 }

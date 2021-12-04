@@ -32,7 +32,7 @@ class BotService(
         return checkNotNull(
             transactionTemplate.execute {
                 if (groupName.value in ALL_MEMBERS_GROUPS) {
-                    botRepository.getMembersByChatId(chatId).distinct()
+                    botRepository.getMembersByChatId(chatId).distinctBy { listOf(it.memberName, it.userId) }
                 } else {
                     val group = getGroupByNameOrThrow(chatId, groupName)
                     botRepository.getMembersByGroupId(group.groupId)

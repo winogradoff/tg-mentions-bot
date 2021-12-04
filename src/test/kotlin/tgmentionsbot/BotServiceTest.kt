@@ -113,10 +113,11 @@ internal class BotServiceTest {
             )
             val member1 = Member(memberId = MemberId(1), memberName = MemberName("aaa"), userId = UserId(111))
             val member2 = Member(memberId = MemberId(2), memberName = MemberName("bbb"), userId = UserId(222))
+            val member3 = member2.copy(memberId = MemberId(3))
 
             every { botRepository.getAliasByName(chatId = chatId, aliasName = groupName) } returns groupAlias
             every { botRepository.getMembersByGroupId(groupId = groupId) } returns listOf(member1)
-            every { botRepository.getMembersByChatId(chatId = chatId) } returns listOf(member1, member2)
+            every { botRepository.getMembersByChatId(chatId = chatId) } returns listOf(member1, member2, member3)
 
             // when
             val members = botService.getMembers(chatId = chatId, groupName = groupName)

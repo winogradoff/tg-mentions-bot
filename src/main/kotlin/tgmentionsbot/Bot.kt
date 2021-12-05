@@ -78,7 +78,7 @@ class Bot(
                 grant = Grant.READ_ACCESS,
                 handler = {
                     val groupName = requestMapper.parseGroup(message)
-                    val members = botService.getMembers(chatId = chat.chatId, groupName = groupName)
+                    val members = botService.getGroupMembers(chatId = chat.chatId, groupName = groupName)
                     sendReply(message, responseMapper.toMembersResponse(groupName, members))
                 }
             )
@@ -89,8 +89,18 @@ class Bot(
                 grant = Grant.READ_ACCESS,
                 handler = {
                     val groupName = requestMapper.parseGroupWithTail(message)
-                    val members = botService.getMembers(chatId = chat.chatId, groupName = groupName)
+                    val members = botService.getGroupMembers(chatId = chat.chatId, groupName = groupName)
                     sendReply(message, responseMapper.toCallResponse(groupName, members))
+                }
+            )
+
+            HERE -> handleCommand(
+                command = command,
+                message = message,
+                grant = Grant.READ_ACCESS,
+                handler = {
+                    val members = botService.getChatMembers(chat.chatId)
+                    sendReply(message, responseMapper.toHereResponse(members))
                 }
             )
 
@@ -189,7 +199,8 @@ class Bot(
                     sendReply(message, "Анархия выключена. Только администраторы могут настраивать бота.")
                 }
             )
-        }
+            
+        }.exhaustive
     }
 
     private fun handleCommand(command: Command, message: Message, grant: Grant, handler: () -> Unit) {

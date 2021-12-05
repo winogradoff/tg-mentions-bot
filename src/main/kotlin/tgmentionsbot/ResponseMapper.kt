@@ -53,12 +53,26 @@ class ResponseMapper {
                     text("Призываем участников группы "); bold { escape(groupName.value) }; text(":")
                     newline()
                     for ((index, member) in members.withIndex()) {
-                        val id = member.userId
-                        val name = member.memberName.value
-                        when (id) {
-                            null -> escape(name)
-                            else -> link(url = "tg://user?id=${id.value}") { escape(name) }
+                        userMention(member)
+                        if (index < members.lastIndex) {
+                            text(" ")
                         }
+                    }
+                }
+            }
+        }
+
+    fun toHereResponse(members: List<Member>): String =
+        createHTML {
+            when {
+                members.isEmpty() -> {
+                    text("В чате нет ни одного пользователя!")
+                }
+                else -> {
+                    text("Призываем участников всех групп:")
+                    newline()
+                    for ((index, member) in members.withIndex()) {
+                        userMention(member)
                         if (index < members.lastIndex) {
                             text(" ")
                         }
@@ -116,9 +130,17 @@ class ResponseMapper {
     fun toHelpMessage(command: Command): String =
         createHTML {
 
-            fun commandExample(example: String) {
+            fun commandExample(vararg examples: String) {
                 bold("Пример использования:"); newline()
-                pre(example)
+
+                for ((index, example) in examples.withIndex()) {
+                    pre(example)
+                    if (index < examples.lastIndex) {
+                        newline()
+                        text("или")
+                        newline()
+                    }
+                }
             }
 
             fun constrains(vararg items: Pair<String, String>) {
@@ -160,7 +182,7 @@ class ResponseMapper {
                     newline()
                     printCommands(Command.values().filter { it.access() == Command.Access.COMMON })
                     newline()
-                    
+
                     bold("Административные команды:")
                     newline()
                     printCommands(Command.values().filter { it.access() == Command.Access.ADMIN })
@@ -169,12 +191,27 @@ class ResponseMapper {
                 Command.GROUPS -> commandExample("/groups")
 
                 Command.MEMBERS,
-                Command.CALL,
                 Command.ADD_GROUP,
                 Command.REMOVE_GROUP -> {
                     commandExample("/${command.firstKey()} group")
                     newline(2)
                     constrains("group" to BotConstraints.MESSAGE_FOR_GROUP)
+                }
+
+                Command.CALL -> {
+                    commandExample(
+                        "/${command.firstKey()} group",
+                        "/${command.firstKey()} group any long important text",
+                    )
+                    newline(2)
+                    constrains("group" to BotConstraints.MESSAGE_FOR_GROUP)
+                }
+
+                Command.HERE -> {
+                    commandExample(
+                        "/${command.firstKey()} ",
+                        "/${command.firstKey()} any long important text",
+                    )
                 }
 
                 Command.ADD_ALIAS -> {
@@ -211,6 +248,16 @@ class ResponseMapper {
                 Command.ENABLE_ANARCHY -> commandExample("/${command.firstKey()}")
 
                 Command.DISABLE_ANARCHY -> commandExample("/${command.firstKey()}")
-            }
+
+            }.exhaustive
         }
+
+    private fun HtmlContext.userMention(member: Member) {
+        val id = member.userId
+        val name = member.memberName.value
+        when (id) {
+            null -> escape(name)
+            else -> link(url = "tg://user?id=${id.value}") { escape(name) }
+        }
+    }
 }

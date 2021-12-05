@@ -27,18 +27,24 @@ class BotService(
             .sortedBy { it.groupName.value }
     }
 
-    fun getMembers(chatId: ChatId, groupName: GroupName): List<Member> {
-        logger.info("Getting members: chatId=[${chatId}], groupName=[${groupName}]")
-        return checkNotNull(
-            transactionTemplate.execute {
-                if (groupName.value in ALL_MEMBERS_GROUPS) {
-                    botRepository.getMembersByChatId(chatId).distinctBy { listOf(it.memberName, it.userId) }
-                } else {
-                    val group = getGroupByNameOrThrow(chatId, groupName)
-                    botRepository.getMembersByGroupId(group.groupId)
-                }
+    fun getGroupMembers(chatId: ChatId, groupName: GroupName): List<Member> {
+        logger.info("Getting group members: chatId=[${chatId}], groupName=[${groupName}]")
+        return when (groupName.value) {
+            in ALL_MEMBERS_GROUPS ->
+                botRepository.getMembersByChatId(chatId)
+                    .distinctBy { listOf(it.memberName, it.userId) }
+            else -> {
+                getGroupByNameOrThrow(chatId, groupName)
+                    .let { botRepository.getMembersByGroupId(it.groupId) }
             }
-        ).sortedBy { it.memberName.value }
+        }.sortedBy { it.memberName.value }
+    }
+
+    fun getChatMembers(chatId: ChatId): List<Member> {
+        logger.info("Getting all chat members: chatId=[${chatId}]")
+        return botRepository.getMembersByChatId(chatId)
+            .distinctBy { listOf(it.memberName, it.userId) }
+            .sortedBy { it.memberName.value }
     }
 
     fun addMembers(chatId: ChatId, groupName: GroupName, newMembers: Set<Member>) {

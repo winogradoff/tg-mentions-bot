@@ -74,7 +74,7 @@ internal class BotServiceTest {
     }
 
     @Nested
-    inner class `getMembers - tests` {
+    inner class `getGroupMembers - tests` {
 
         @Test
         fun positive() {
@@ -94,7 +94,7 @@ internal class BotServiceTest {
             every { botRepository.getMembersByGroupId(groupId = groupId) } returns listOf(member1, member2)
 
             // when
-            val members = botService.getMembers(chatId = chatId, groupName = groupName)
+            val members = botService.getGroupMembers(chatId = chatId, groupName = groupName)
 
             // then
             assertThat(members).containsExactlyInAnyOrder(member1, member2)
@@ -120,7 +120,26 @@ internal class BotServiceTest {
             every { botRepository.getMembersByChatId(chatId = chatId) } returns listOf(member1, member2, member3)
 
             // when
-            val members = botService.getMembers(chatId = chatId, groupName = groupName)
+            val members = botService.getGroupMembers(chatId = chatId, groupName = groupName)
+
+            // then
+            assertThat(members).containsExactlyInAnyOrder(member1, member2)
+        }
+    }
+
+    @Nested
+    inner class `getChatMembers - tests` {
+
+        @Test
+        fun positive() {
+            // given
+            val member1 = Member(memberId = MemberId(1), memberName = MemberName("aaa"), userId = UserId(111))
+            val member2 = Member(memberId = MemberId(2), memberName = MemberName("bbb"), userId = UserId(222))
+            val member3 = member2.copy(memberId = MemberId(3))
+            every { botRepository.getMembersByChatId(chatId) } returns listOf(member1, member2, member3)
+
+            // when
+            val members = botService.getChatMembers(chatId)
 
             // then
             assertThat(members).containsExactlyInAnyOrder(member1, member2)

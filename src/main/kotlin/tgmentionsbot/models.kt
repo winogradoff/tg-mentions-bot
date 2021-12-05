@@ -97,17 +97,22 @@ enum class Command(
     val description: String
 ) {
     HELP(keys = setOf("start", "help"), description = "справка по командам бота"),
+
     GROUPS(keys = setOf("groups"), description = "список групп"),
     MEMBERS(keys = setOf("members"), description = "список пользователей в группе"),
-    CALL(keys = setOf("call", "c", "yo"), description = "позвать пользователей"),
+
+    CALL(keys = setOf("call", "c", "yo"), description = "позвать пользователей конкретной группы"),
+    HERE(keys = setOf("here", "all"), description = "позвать пользователей из всех групп"),
 
     ADD_GROUP(keys = setOf("add_group"), description = "добавить группу"),
     REMOVE_GROUP(keys = setOf("remove_group"), description = "удалить группу"),
+
     ADD_ALIAS(keys = setOf("add_alias"), description = "добавить синоним группы"),
     REMOVE_ALIAS(keys = setOf("remove_alias"), description = "удалить синоним группы"),
+
     ADD_MEMBERS(keys = setOf("add_members"), description = "добавить пользователей в группу"),
-    REMOVE_MEMBERS(keys = setOf("remove_members"), description = "удалить пользователей из конкретной группы"),
-    PURGE_MEMBERS(keys = setOf("purge_members"), description = "удалить пользователей из всех групп чата"),
+    REMOVE_MEMBERS(keys = setOf("remove_members"), description = "удалить пользователей из группы"),
+    PURGE_MEMBERS(keys = setOf("purge_members"), description = "удалить указанных пользователей из всех групп чата"),
 
     ENABLE_ANARCHY(keys = setOf("enable_anarchy"), description = "всем доступны настройки"),
     DISABLE_ANARCHY(keys = setOf("disable_anarchy"), description = "только админам доступны настройки");
@@ -118,9 +123,18 @@ enum class Command(
         HELP,
         GROUPS,
         MEMBERS,
-        CALL -> Access.COMMON
+        CALL,
+        HERE -> Access.COMMON
 
-        else -> Access.ADMIN
+        ADD_GROUP,
+        REMOVE_GROUP,
+        ADD_ALIAS,
+        REMOVE_ALIAS,
+        ADD_MEMBERS,
+        REMOVE_MEMBERS,
+        PURGE_MEMBERS,
+        ENABLE_ANARCHY,
+        DISABLE_ANARCHY -> Access.ADMIN
     }
 
     enum class Access { COMMON, ADMIN }

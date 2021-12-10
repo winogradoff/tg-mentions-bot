@@ -96,7 +96,7 @@ enum class Command(
     val keys: Set<String>,
     val description: String
 ) {
-    HELP(keys = setOf("start", "help"), description = "справка по командам бота"),
+    HELP(keys = setOf("start", "help"), description = "справка по всем командам"),
 
     GROUPS(keys = setOf("groups"), description = "список групп"),
     MEMBERS(keys = setOf("members"), description = "список пользователей в группе"),

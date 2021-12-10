@@ -130,9 +130,24 @@ class ResponseMapper {
     fun toHelpMessage(command: Command): String =
         createHTML {
 
+            fun commandDescription() {
+                bold("Описание команды:"); newline()
+                text(command.description)
+                if (command.keys.size > 1) {
+                    newline(2)
+                    bold("Синонимы команды:"); newline()
+                    val keys = command.keys.toList()
+                    for ((index, key) in keys.withIndex()) {
+                        pre(key)
+                        if (index < keys.lastIndex) {
+                            text(", ")
+                        }
+                    }
+                }
+            }
+
             fun commandExample(vararg examples: String) {
                 bold("Пример использования:"); newline()
-
                 for ((index, example) in examples.withIndex()) {
                     pre(example)
                     if (index < examples.lastIndex) {
@@ -188,34 +203,46 @@ class ResponseMapper {
                     printCommands(Command.values().filter { it.access() == Command.Access.ADMIN })
                 }
 
-                Command.GROUPS -> commandExample("/groups")
+                Command.GROUPS -> {
+                    commandDescription()
+                    newline(2)
+                    commandExample("/groups")
+                }
 
                 Command.MEMBERS,
                 Command.ADD_GROUP,
                 Command.REMOVE_GROUP,
                 Command.REMOVE_GROUP_FORCE -> {
+                    commandDescription()
+                    newline(2)
                     commandExample("/${command.firstKey()} group")
                     newline(2)
                     constrains("group" to BotConstraints.MESSAGE_FOR_GROUP)
                 }
 
                 Command.CALL -> {
+                    commandDescription()
+                    newline(2)
                     commandExample(
                         "/${command.firstKey()} group",
-                        "/${command.firstKey()} group any long important text",
+                        "/${command.firstKey()} group какой-то текст",
                     )
                     newline(2)
                     constrains("group" to BotConstraints.MESSAGE_FOR_GROUP)
                 }
 
                 Command.HERE -> {
+                    commandDescription()
+                    newline(2)
                     commandExample(
                         "/${command.firstKey()} ",
-                        "/${command.firstKey()} any long important text",
+                        "/${command.firstKey()} какой-то текст",
                     )
                 }
 
                 Command.ADD_ALIAS -> {
+                    commandDescription()
+                    newline(2)
                     commandExample("/${command.firstKey()} group alias")
                     newline(2)
                     constrains(
@@ -225,6 +252,8 @@ class ResponseMapper {
                 }
 
                 Command.REMOVE_ALIAS -> {
+                    commandDescription()
+                    newline(2)
                     commandExample("/${command.firstKey()} alias")
                     newline(); newline()
                     constrains("alias" to BotConstraints.MESSAGE_FOR_GROUP)
@@ -232,6 +261,8 @@ class ResponseMapper {
 
                 Command.ADD_MEMBERS,
                 Command.REMOVE_MEMBERS -> {
+                    commandDescription()
+                    newline(2)
                     commandExample("/${command.firstKey()} group member1 member2")
                     newline(2)
                     constrains(
@@ -241,14 +272,19 @@ class ResponseMapper {
                 }
 
                 Command.PURGE_MEMBERS -> {
+                    commandDescription()
+                    newline(2)
                     commandExample("/${command.firstKey()} member1 member2")
                     newline(2)
                     constrains("member" to BotConstraints.MESSAGE_FOR_MEMBER)
                 }
 
-                Command.ENABLE_ANARCHY -> commandExample("/${command.firstKey()}")
-
-                Command.DISABLE_ANARCHY -> commandExample("/${command.firstKey()}")
+                Command.ENABLE_ANARCHY,
+                Command.DISABLE_ANARCHY -> {
+                    commandDescription()
+                    newline(2)
+                    commandExample("/${command.firstKey()}")
+                }
 
             }.exhaustive
         }

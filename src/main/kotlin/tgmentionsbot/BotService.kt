@@ -111,20 +111,21 @@ class BotService(
         }
     }
 
-    fun removeGroup(chatId: ChatId, groupName: GroupName) {
-        logger.info("Removing group: chatId=[${chatId}], groupName=[$groupName]")
+    fun removeGroup(chatId: ChatId, groupName: GroupName, force: Boolean) {
+        logger.info("Removing group: chatId=[${chatId}], groupName=[$groupName], force=[$force]")
         transactionTemplate.executeWithoutResult {
             botRepository.getChatByIdForUpdate(chatId)
             val group = getGroupByNameOrThrow(chatId, groupName)
             val members = botRepository.getMembersByGroupId(group.groupId)
-            if (members.isNotEmpty()) {
-                throw BotReplyException.IntegrityViolationError(
+            when {
+                !force && members.isNotEmpty() -> throw BotReplyException.IntegrityViolationError(
                     message = "List of members is not empty",
                     userMessage = "Группу нельзя удалить, в ней есть пользователи!"
                 )
+                else -> members.forEach { botRepository.removeMemberFromGroupByName(group.groupId, it.memberName) }
             }
-            val aliases = botRepository.getAliasesByGroupId(group.groupId)
-            aliases.forEach { botRepository.removeAliasById(it.aliasId) }
+            botRepository.getAliasesByGroupId(group.groupId)
+                .forEach { botRepository.removeAliasById(it.aliasId) }
             botRepository.removeGroupById(group.groupId)
         }
     }

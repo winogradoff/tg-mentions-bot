@@ -106,6 +106,7 @@ enum class Command(
 
     ADD_GROUP(keys = setOf("add_group"), description = "добавить группу"),
     REMOVE_GROUP(keys = setOf("remove_group"), description = "удалить группу"),
+    REMOVE_GROUP_FORCE(keys = setOf("remove_group_force"), description = "удалить группу со всеми пользователями"),
 
     ADD_ALIAS(keys = setOf("add_alias"), description = "добавить синоним группы"),
     REMOVE_ALIAS(keys = setOf("remove_alias"), description = "удалить синоним группы"),
@@ -128,6 +129,7 @@ enum class Command(
 
         ADD_GROUP,
         REMOVE_GROUP,
+        REMOVE_GROUP_FORCE,
         ADD_ALIAS,
         REMOVE_ALIAS,
         ADD_MEMBERS,

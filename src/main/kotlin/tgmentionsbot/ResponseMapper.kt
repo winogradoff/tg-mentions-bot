@@ -192,7 +192,8 @@ class ResponseMapper {
 
                 Command.MEMBERS,
                 Command.ADD_GROUP,
-                Command.REMOVE_GROUP -> {
+                Command.REMOVE_GROUP,
+                Command.REMOVE_GROUP_FORCE -> {
                     commandExample("/${command.firstKey()} group")
                     newline(2)
                     constrains("group" to BotConstraints.MESSAGE_FOR_GROUP)

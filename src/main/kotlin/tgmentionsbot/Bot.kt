@@ -120,7 +120,25 @@ class Bot(
                 message = message,
                 grant = Grant.WRITE_ACCESS,
                 handler = {
-                    botService.removeGroup(chatId = chat.chatId, groupName = requestMapper.parseGroup(message))
+                    botService.removeGroup(
+                        chatId = chat.chatId,
+                        groupName = requestMapper.parseGroup(message),
+                        force = false
+                    )
+                    sendReply(message, "Группа удалена.")
+                }
+            )
+
+            REMOVE_GROUP_FORCE -> handleCommand(
+                command = command,
+                message = message,
+                grant = Grant.WRITE_ACCESS,
+                handler = {
+                    botService.removeGroup(
+                        chatId = chat.chatId,
+                        groupName = requestMapper.parseGroup(message),
+                        force = true
+                    )
                     sendReply(message, "Группа удалена.")
                 }
             )
@@ -199,7 +217,7 @@ class Bot(
                     sendReply(message, "Анархия выключена. Только администраторы могут настраивать бота.")
                 }
             )
-            
+
         }.exhaustive
     }
 

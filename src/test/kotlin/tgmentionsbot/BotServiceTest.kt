@@ -3,6 +3,7 @@ package tgmentionsbot
 import assertk.assertThat
 import assertk.assertions.*
 import io.mockk.*
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.springframework.transaction.TransactionStatus
@@ -179,32 +180,72 @@ internal class BotServiceTest {
     @Nested
     inner class `removeGroup - tests` {
 
-        @Test
-        fun positive() {
-            // given
-            val groupId = GroupId(123)
-            val groupName = GroupName("qwe")
-            val groupAlias = GroupAlias(
-                chatId = chatId,
-                groupId = groupId,
-                aliasId = AliasId(111),
-                aliasName = groupName
-            )
-            every { botRepository.getAliasByName(chatId, groupName) } returns groupAlias
+        private val groupId = GroupId(123)
+        private val groupName = GroupName("qwe")
+        private val group = GroupAlias(
+            chatId = chatId,
+            groupId = groupId,
+            aliasId = AliasId(111),
+            aliasName = groupName
+        )
+        private val aliasId1 = AliasId(1)
+        private val aliasId2 = AliasId(2)
+        private val memberName1 = MemberName("aaa")
+        private val memberName2 = MemberName("bbb")
+
+        @BeforeEach
+        fun beforeEach() {
+            every { botRepository.getAliasByName(chatId, groupName) } returns group
             every { botRepository.getMembersByGroupId(groupId) } returns emptyList()
 
             every { botRepository.getAliasesByGroupId(groupId) } returns listOf(
                 GroupAlias(chatId = chatId, aliasId = AliasId(1), groupId = groupId, aliasName = GroupName("aaa")),
                 GroupAlias(chatId = chatId, aliasId = AliasId(2), groupId = groupId, aliasName = GroupName("bbb")),
             )
+        }
 
+        @Test
+        fun `positive - no force - empty group`() {
             // when
-            botService.removeGroup(chatId = chatId, groupName = groupName)
+            botService.removeGroup(chatId = chatId, groupName = groupName, force = false)
 
             // then
             verify { botRepository.removeGroupById(groupId) }
             verify { botRepository.removeAliasById(AliasId(1)) }
             verify { botRepository.removeAliasById(AliasId(2)) }
+        }
+
+        @Test
+        fun `negative - no force - there are users in the group`() {
+            // given
+            every { botRepository.getMembersByGroupId(groupId) } returns listOf(
+                Member(memberName = memberName1, memberId = MemberId(1), userId = UserId(1)),
+                Member(memberName = memberName2, memberId = MemberId(2), userId = UserId(2)),
+            )
+
+            // when
+            assertThat {
+                botService.removeGroup(chatId = chatId, groupName = groupName, force = false)
+            }.isFailure().isInstanceOf(BotReplyException.IntegrityViolationError::class)
+        }
+
+        @Test
+        fun `positive - force`() {
+            // given
+            every { botRepository.getMembersByGroupId(groupId) } returns listOf(
+                Member(memberName = memberName1, memberId = MemberId(1), userId = UserId(1)),
+                Member(memberName = memberName2, memberId = MemberId(2), userId = UserId(2)),
+            )
+
+            // when
+            botService.removeGroup(chatId = chatId, groupName = groupName, force = true)
+
+            // then
+            verify { botRepository.removeMemberFromGroupByName(groupId, memberName1) }
+            verify { botRepository.removeMemberFromGroupByName(groupId, memberName2) }
+            verify { botRepository.removeAliasById(aliasId1) }
+            verify { botRepository.removeAliasById(aliasId2) }
+            verify { botRepository.removeGroupById(groupId) }
         }
     }
 

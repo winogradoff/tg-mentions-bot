@@ -2,6 +2,7 @@ package tgmentionsbot
 
 import org.springframework.stereotype.Component
 
+@Suppress("DuplicatedCode")
 @Component
 class ResponseMapper {
 

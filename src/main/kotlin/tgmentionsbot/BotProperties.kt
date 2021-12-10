@@ -1,17 +1,15 @@
 package tgmentionsbot
 
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.stereotype.Component
+import org.springframework.boot.context.properties.ConstructorBinding
 import javax.validation.constraints.NotEmpty
 
-
-@Component
+@ConstructorBinding
 @ConfigurationProperties("tgmentionsbot")
-class BotProperties {
+class BotProperties(
+    @NotEmpty
+    val botUsername: String,
 
     @NotEmpty
-    lateinit var botUsername: String
-
-    @NotEmpty
-    lateinit var botToken: String
-}
+    val botToken: String
+)

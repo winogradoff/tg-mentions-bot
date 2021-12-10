@@ -40,11 +40,6 @@ value class UserId(val value: Long) {
 }
 
 @JvmInline
-value class MemberId(val value: Long) {
-    override fun toString(): String = value.toString()
-}
-
-@JvmInline
 value class MemberName(val value: String) {
 
     init {
@@ -70,10 +65,6 @@ data class Chat(
     val isAnarchyEnabled: Boolean? = null
 )
 
-data class Group(
-    val groupId: GroupId
-)
-
 data class GroupAlias(
     val chatId: ChatId,
     val groupId: GroupId,
@@ -88,7 +79,6 @@ data class GroupWithAliases(
 
 data class Member(
     val memberName: MemberName,
-    val memberId: MemberId? = null,
     val userId: UserId? = null
 )
 

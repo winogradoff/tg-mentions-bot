@@ -147,7 +147,7 @@ class BotRepository(private val jdbcTemplate: NamedParameterJdbcTemplate) {
         logger.info("Getting members by groupId=[$groupId]")
         return jdbcTemplate.query(
             """
-                select member_id, member_name, user_id
+                select member_name, user_id
                 from member
                 where group_id = :group_id
             """.trimIndent(),
@@ -155,7 +155,6 @@ class BotRepository(private val jdbcTemplate: NamedParameterJdbcTemplate) {
         ) { rs, _ ->
             Member(
                 memberName = MemberName(rs.getString("member_name")),
-                memberId = rs.getLongOrNull("member_id")?.let { MemberId(it) },
                 userId = rs.getLongOrNull("user_id")?.let { UserId(it) }
             )
         }
@@ -165,7 +164,7 @@ class BotRepository(private val jdbcTemplate: NamedParameterJdbcTemplate) {
         logger.info("Getting members by chatId=[$chatId]")
         return jdbcTemplate.query(
             """
-                select m.member_id, m.member_name, m.user_id
+                select m.member_name, m.user_id
                 from member m
                 join chat_group cg on cg.group_id = m.group_id
                 where cg.chat_id = :chat_id
@@ -174,7 +173,6 @@ class BotRepository(private val jdbcTemplate: NamedParameterJdbcTemplate) {
         ) { rs, _ ->
             Member(
                 memberName = MemberName(rs.getString("member_name")),
-                memberId = rs.getLongOrNull("member_id")?.let { MemberId(it) },
                 userId = rs.getLongOrNull("user_id")?.let { UserId(it) }
             )
         }

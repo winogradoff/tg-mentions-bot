@@ -88,8 +88,8 @@ internal class BotServiceTest {
                 aliasName = groupName,
                 aliasId = AliasId(456)
             )
-            val member1 = Member(memberId = MemberId(1), memberName = MemberName("aaa"), userId = UserId(111))
-            val member2 = Member(memberId = MemberId(2), memberName = MemberName("bbb"), userId = UserId(222))
+            val member1 = Member(memberName = MemberName("aaa"), userId = UserId(111))
+            val member2 = Member(memberName = MemberName("bbb"), userId = UserId(222))
 
             every { botRepository.getAliasByName(chatId = chatId, aliasName = groupName) } returns groupAlias
             every { botRepository.getMembersByGroupId(groupId = groupId) } returns listOf(member1, member2)
@@ -112,9 +112,9 @@ internal class BotServiceTest {
                 aliasName = groupName,
                 aliasId = AliasId(456)
             )
-            val member1 = Member(memberId = MemberId(1), memberName = MemberName("aaa"), userId = UserId(111))
-            val member2 = Member(memberId = MemberId(2), memberName = MemberName("bbb"), userId = UserId(222))
-            val member3 = member2.copy(memberId = MemberId(3))
+            val member1 = Member(memberName = MemberName("aaa"), userId = UserId(111))
+            val member2 = Member(memberName = MemberName("bbb"), userId = UserId(222))
+            val member3 = member2.copy()
 
             every { botRepository.getAliasByName(chatId = chatId, aliasName = groupName) } returns groupAlias
             every { botRepository.getMembersByGroupId(groupId = groupId) } returns listOf(member1)
@@ -134,9 +134,9 @@ internal class BotServiceTest {
         @Test
         fun positive() {
             // given
-            val member1 = Member(memberId = MemberId(1), memberName = MemberName("aaa"), userId = UserId(111))
-            val member2 = Member(memberId = MemberId(2), memberName = MemberName("bbb"), userId = UserId(222))
-            val member3 = member2.copy(memberId = MemberId(3))
+            val member1 = Member(memberName = MemberName("aaa"), userId = UserId(111))
+            val member2 = Member(memberName = MemberName("bbb"), userId = UserId(222))
+            val member3 = member2.copy()
             every { botRepository.getMembersByChatId(chatId) } returns listOf(member1, member2, member3)
 
             // when
@@ -219,8 +219,8 @@ internal class BotServiceTest {
         fun `negative - no force - there are users in the group`() {
             // given
             every { botRepository.getMembersByGroupId(groupId) } returns listOf(
-                Member(memberName = memberName1, memberId = MemberId(1), userId = UserId(1)),
-                Member(memberName = memberName2, memberId = MemberId(2), userId = UserId(2)),
+                Member(memberName = memberName1, userId = UserId(1)),
+                Member(memberName = memberName2, userId = UserId(2)),
             )
 
             // when
@@ -233,8 +233,8 @@ internal class BotServiceTest {
         fun `positive - force`() {
             // given
             every { botRepository.getMembersByGroupId(groupId) } returns listOf(
-                Member(memberName = memberName1, memberId = MemberId(1), userId = UserId(1)),
-                Member(memberName = memberName2, memberId = MemberId(2), userId = UserId(2)),
+                Member(memberName = memberName1, userId = UserId(1)),
+                Member(memberName = memberName2, userId = UserId(2)),
             )
 
             // when

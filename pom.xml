@@ -21,7 +21,7 @@
         <java.version>11</java.version>
         <kotlin.version>1.7.20</kotlin.version>
         <testcontainers.version>1.15.3</testcontainers.version>
-        <telegrambots.version>5.4.0.1</telegrambots.version>
+        <telegrambots.version>6.1.0</telegrambots.version>
         <h2.version>1.4.200</h2.version>
         <mockk.version>1.13.2</mockk.version>
         <assertk-jvm.version>0.25</assertk-jvm.version>

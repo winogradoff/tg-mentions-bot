@@ -1,10 +1,13 @@
 package tgmentionsbot
 
+import org.springframework.boot.info.BuildProperties
 import org.springframework.stereotype.Component
 
 @Suppress("DuplicatedCode")
 @Component
-class ResponseMapper {
+class ResponseMapper(
+    private val buildProperties: BuildProperties
+) {
 
     fun toGroupsResponse(groups: List<GroupWithAliases>): String =
         createHTML {
@@ -231,6 +234,9 @@ class ResponseMapper {
                     bold("Административные команды:")
                     newline()
                     printCommands(Command.values().filter { it.access() == Command.Access.ADMIN })
+
+                    newline()
+                    text("build: ${buildProperties.version} (${buildProperties.time})")
                 }
 
                 Command.GROUPS -> {

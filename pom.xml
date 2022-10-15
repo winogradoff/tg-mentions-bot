@@ -19,7 +19,7 @@
 
     <properties>
         <java.version>11</java.version>
-        <kotlin.version>1.6.0</kotlin.version>
+        <kotlin.version>1.7.20</kotlin.version>
         <testcontainers.version>1.15.3</testcontainers.version>
         <telegrambots.version>5.4.0.1</telegrambots.version>
         <h2.version>1.4.200</h2.version>

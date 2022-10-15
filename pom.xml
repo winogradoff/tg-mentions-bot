@@ -23,7 +23,7 @@
         <testcontainers.version>1.15.3</testcontainers.version>
         <telegrambots.version>5.4.0.1</telegrambots.version>
         <h2.version>1.4.200</h2.version>
-        <mockk.version>1.12.0</mockk.version>
+        <mockk.version>1.13.2</mockk.version>
         <assertk-jvm.version>0.25</assertk-jvm.version>
         <commons-lang3.version>3.12.0</commons-lang3.version>
         <commons-text.version>1.10.0</commons-text.version>
@@ -95,7 +95,7 @@
         <!-- tests -->
         <dependency>
             <groupId>io.mockk</groupId>
-            <artifactId>mockk</artifactId>
+            <artifactId>mockk-jvm</artifactId>
             <version>${mockk.version}</version>
             <scope>test</scope>
         </dependency>

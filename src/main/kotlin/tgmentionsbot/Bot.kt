@@ -225,7 +225,7 @@ class Bot(
                 message = message,
                 grant = Grant.CHANGE_CHAT_SETTINGS,
                 handler = {
-                    botService.enableAnarchy(chat.chatId)
+                    botService.enableAnarchy(chat)
                     sendReply(message, "Анархия включена. Все пользователи могут настраивать бота.")
                 }
             )
@@ -235,7 +235,7 @@ class Bot(
                 message = message,
                 grant = Grant.CHANGE_CHAT_SETTINGS,
                 handler = {
-                    botService.disableAnarchy(chat.chatId)
+                    botService.disableAnarchy(chat)
                     sendReply(message, "Анархия выключена. Только администраторы могут настраивать бота.")
                 }
             )
@@ -284,17 +284,30 @@ class Bot(
 
     private fun checkAccess(message: Message, grant: Grant) {
         logger.info("checkAccess grant=[$grant]")
-        when {
-            grant == Grant.READ_ACCESS ->
-                logger.info("Read access => no restrictions")
-            requestMapper.isPrivateChat(message) ->
-                logger.info("Private chat => no restrictions")
-            requestMapper.isOwnerOrAdmin(message, getChatAdministrators(message)) ->
-                logger.info("Owner or admin => no restrictions")
-            botService.isAnarchyEnabled(ChatId(message.chat.id)) ->
-                logger.info("No restriction when anarchy enabled")
-            else -> throw BotReplyException.AuthorizationError("Access denied: grant=[$grant]")
-        }
+
+        fun isPrivateChat() = requestMapper.isPrivateChat(message)
+        fun isOwnerOrAdmin() = requestMapper.isOwnerOrAdmin(message, getChatAdministrators(message))
+        fun isAnarchyEnabled() = botService.isAnarchyEnabled(ChatId(message.chat.id))
+        fun throwAuthError(): Nothing = throw BotReplyException.AuthorizationError("Access denied: grant=[$grant]")
+
+        when (grant) {
+
+            Grant.READ_ACCESS -> logger.info("Read access => no restrictions")
+
+            Grant.WRITE_ACCESS -> when {
+                isPrivateChat() -> logger.info("Private chat => no restrictions")
+                isOwnerOrAdmin() -> logger.info("Owner or admin => no restrictions")
+                isAnarchyEnabled() -> logger.info("No restriction when anarchy enabled")
+                else -> throwAuthError()
+            }
+
+            Grant.CHANGE_CHAT_SETTINGS -> when {
+                isPrivateChat() -> logger.info("Private chat => no restrictions")
+                isOwnerOrAdmin() -> logger.info("Owner or admin => no restrictions")
+                else -> throwAuthError()
+            }
+
+        }.exhaustive
     }
 
     private fun getChatAdministrators(message: Message): List<ChatMember> =

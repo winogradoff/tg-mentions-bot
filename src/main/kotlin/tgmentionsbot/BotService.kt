@@ -30,9 +30,9 @@ class BotService(
     fun getGroupMembers(chatId: ChatId, groupName: GroupName): List<Member> {
         logger.info("Getting group members: chatId=[${chatId}], groupName=[${groupName}]")
         return when (groupName.value) {
-            in ALL_MEMBERS_GROUPS ->
-                botRepository.getMembersByChatId(chatId)
-                    .distinctBy { listOf(it.memberName, it.userId) }
+            in ALL_MEMBERS_GROUPS -> botRepository.getMembersByChatId(chatId)
+                .distinctBy { listOf(it.memberName, it.userId) }
+
             else -> {
                 getGroupByNameOrThrow(chatId, groupName)
                     .let { botRepository.getMembersByGroupId(it.groupId) }
@@ -148,6 +148,7 @@ class BotService(
                     message = "List of members is not empty",
                     userMessage = "Группу нельзя удалить, в ней есть пользователи!"
                 )
+
                 else -> members.forEach { botRepository.removeMemberFromGroupByName(group.groupId, it.memberName) }
             }
             botRepository.getAliasesByGroupId(group.groupId)
@@ -199,14 +200,22 @@ class BotService(
         }
     }
 
-    fun enableAnarchy(chatId: ChatId) {
-        logger.info("Enabling anarchy: chatId=[${chatId}]")
-        botRepository.setAnarchyStatus(chatId, isAnarchyEnabled = true)
+    fun enableAnarchy(chat: Chat) {
+        logger.info("Enabling anarchy: chatId=[${chat.chatId}]")
+        transactionTemplate.executeWithoutResult {
+            botRepository.addChat(chat)
+            botRepository.getChatByIdForUpdate(chat.chatId)
+            botRepository.setAnarchyStatus(chat.chatId, isAnarchyEnabled = true)
+        }
     }
 
-    fun disableAnarchy(chatId: ChatId) {
-        logger.info("Disabling anarchy: chatId=[${chatId}]")
-        botRepository.setAnarchyStatus(chatId, isAnarchyEnabled = false)
+    fun disableAnarchy(chat: Chat) {
+        logger.info("Disabling anarchy: chatId=[${chat.chatId}]")
+        transactionTemplate.executeWithoutResult {
+            botRepository.addChat(chat)
+            botRepository.getChatByIdForUpdate(chat.chatId)
+            botRepository.setAnarchyStatus(chat.chatId, isAnarchyEnabled = false)
+        }
     }
 
     fun isAnarchyEnabled(chatId: ChatId): Boolean {

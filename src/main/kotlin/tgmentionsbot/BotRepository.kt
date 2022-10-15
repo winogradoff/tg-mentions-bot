@@ -346,7 +346,7 @@ class BotRepository(private val jdbcTemplate: NamedParameterJdbcTemplate) {
             """.trimIndent(),
             mapOf("chat_id" to chatId.value)
         ) { rs, _ -> rs.getBoolean("is_anarchy_enabled") }
-        return result.isEmpty() || result.single()
+        return result.singleOrNull() ?: false
     }
 
     fun setAnarchyStatus(chatId: ChatId, isAnarchyEnabled: Boolean) {

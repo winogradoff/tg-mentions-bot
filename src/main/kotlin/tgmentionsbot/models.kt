@@ -79,7 +79,8 @@ data class GroupWithAliases(
 
 data class Member(
     val memberName: MemberName,
-    val userId: UserId? = null
+    val userId: UserId? = null,
+    val enabled: Boolean = true
 )
 
 enum class Command(
@@ -105,6 +106,9 @@ enum class Command(
     REMOVE_MEMBERS(keys = setOf("remove_members"), description = "удалить пользователей из группы"),
     PURGE_MEMBERS(keys = setOf("purge_members"), description = "удалить указанных пользователей из всех групп чата"),
 
+    MUTE_MEMBERS(keys = setOf("mute_members"), description = "выключить упоминание пользователей"),
+    UNMUTE_MEMBERS(keys = setOf("unmute_members"), description = "включить упоминание пользователей"),
+
     ENABLE_ANARCHY(keys = setOf("enable_anarchy"), description = "всем доступны настройки"),
     DISABLE_ANARCHY(keys = setOf("disable_anarchy"), description = "только админам доступны настройки");
 
@@ -125,6 +129,8 @@ enum class Command(
         ADD_MEMBERS,
         REMOVE_MEMBERS,
         PURGE_MEMBERS,
+        MUTE_MEMBERS,
+        UNMUTE_MEMBERS,
         ENABLE_ANARCHY,
         DISABLE_ANARCHY -> Access.ADMIN
     }

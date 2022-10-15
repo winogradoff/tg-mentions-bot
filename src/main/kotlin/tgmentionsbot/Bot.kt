@@ -198,6 +198,28 @@ class Bot(
                 }
             )
 
+            MUTE_MEMBERS -> handleCommand(
+                command = command,
+                message = message,
+                grant = Grant.WRITE_ACCESS,
+                handler = {
+                    val members: Set<Member> = requestMapper.parseMembers(message)
+                    botService.muteMembers(chatId = chat.chatId, members = members)
+                    sendReply(message, responseMapper.toMuteMembersResponse(members))
+                }
+            )
+
+            UNMUTE_MEMBERS -> handleCommand(
+                command = command,
+                message = message,
+                grant = Grant.WRITE_ACCESS,
+                handler = {
+                    val members: Set<Member> = requestMapper.parseMembers(message)
+                    botService.unmuteMembers(chatId = chat.chatId, members = members)
+                    sendReply(message, responseMapper.toUnmuteMembersResponse(members))
+                }
+            )
+
             ENABLE_ANARCHY -> handleCommand(
                 command = command,
                 message = message,

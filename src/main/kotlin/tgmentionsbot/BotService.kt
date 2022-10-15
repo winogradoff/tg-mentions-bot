@@ -98,6 +98,32 @@ class BotService(
         }
     }
 
+    fun muteMembers(chatId: ChatId, members: Set<Member>) {
+        logger.info("Muting members: chatId=[${chatId}], members=[$members]")
+        checkMembersNotEmpty(members)
+        transactionTemplate.executeWithoutResult {
+            members.forEach { member ->
+                when {
+                    member.userId != null -> botRepository.muteMemberByUserId(chatId, member.userId)
+                    else -> botRepository.muteMemberByName(chatId, member.memberName)
+                }
+            }
+        }
+    }
+
+    fun unmuteMembers(chatId: ChatId, members: Set<Member>) {
+        logger.info("Unmuting members: chatId=[${chatId}], members=[$members]")
+        checkMembersNotEmpty(members)
+        transactionTemplate.executeWithoutResult {
+            members.forEach { member ->
+                when {
+                    member.userId != null -> botRepository.unmuteMemberByUserId(chatId, member.userId)
+                    else -> botRepository.unmuteMemberByName(chatId, member.memberName)
+                }
+            }
+        }
+    }
+
     fun addGroup(chat: Chat, groupName: GroupName) {
         logger.info("Adding group: chat=[${chat}], groupName=[$groupName]")
         transactionTemplate.executeWithoutResult {

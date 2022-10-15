@@ -147,15 +147,16 @@ class BotRepository(private val jdbcTemplate: NamedParameterJdbcTemplate) {
         logger.info("Getting members by groupId=[$groupId]")
         return jdbcTemplate.query(
             """
-                select member_name, user_id
-                from member
+                select m.member_name, m.user_id, m.enabled
+                from member m
                 where group_id = :group_id
             """.trimIndent(),
             mapOf("group_id" to groupId.value)
         ) { rs, _ ->
             Member(
                 memberName = MemberName(rs.getString("member_name")),
-                userId = rs.getLongOrNull("user_id")?.let { UserId(it) }
+                userId = rs.getLongOrNull("user_id")?.let { UserId(it) },
+                enabled = rs.getBooleanOrNull("enabled") ?: false
             )
         }
     }
@@ -164,7 +165,7 @@ class BotRepository(private val jdbcTemplate: NamedParameterJdbcTemplate) {
         logger.info("Getting members by chatId=[$chatId]")
         return jdbcTemplate.query(
             """
-                select m.member_name, m.user_id
+                select m.member_name, m.user_id, m.enabled
                 from member m
                 join chat_group cg on cg.group_id = m.group_id
                 where cg.chat_id = :chat_id
@@ -173,7 +174,8 @@ class BotRepository(private val jdbcTemplate: NamedParameterJdbcTemplate) {
         ) { rs, _ ->
             Member(
                 memberName = MemberName(rs.getString("member_name")),
-                userId = rs.getLongOrNull("user_id")?.let { UserId(it) }
+                userId = rs.getLongOrNull("user_id")?.let { UserId(it) },
+                enabled = rs.getBooleanOrNull("enabled") ?: false
             )
         }
     }
@@ -266,6 +268,74 @@ class BotRepository(private val jdbcTemplate: NamedParameterJdbcTemplate) {
         )
     }
 
+    fun muteMemberByUserId(chatId: ChatId, userId: UserId) {
+        logger.info("Muting member: chatId=[$chatId], userId=[$userId]")
+        jdbcTemplate.update(
+            """
+                update member m
+                    set enabled = false
+                where
+                    m.user_id = :user_id
+                    and m.group_id in (select cg.group_id from chat_group cg where cg.chat_id = :chat_id)
+            """.trimIndent(),
+            mapOf(
+                "chat_id" to chatId.value,
+                "user_id" to userId.value
+            )
+        )
+    }
+
+    fun muteMemberByName(chatId: ChatId, memberName: MemberName) {
+        logger.info("Muting member: chatId=[$chatId], memberName=[$memberName]")
+        jdbcTemplate.update(
+            """
+                update member m
+                    set enabled = false
+                where
+                    m.member_name = :member_name
+                    and m.group_id in (select cg.group_id from chat_group cg where cg.chat_id = :chat_id)
+            """.trimIndent(),
+            mapOf(
+                "chat_id" to chatId.value,
+                "member_name" to memberName.value
+            )
+        )
+    }
+
+    fun unmuteMemberByUserId(chatId: ChatId, userId: UserId) {
+        logger.info("Unmuting member in chat: chatId=[$chatId], userId=[$userId]")
+        jdbcTemplate.update(
+            """
+                update member m
+                    set enabled = true
+                where
+                    m.user_id = :user_id
+                    and m.group_id in (select cg.group_id from chat_group cg where cg.chat_id = :chat_id)
+            """.trimIndent(),
+            mapOf(
+                "chat_id" to chatId.value,
+                "user_id" to userId.value
+            )
+        )
+    }
+
+    fun unmuteMemberByName(chatId: ChatId, memberName: MemberName) {
+        logger.info("Unmuting member in chat: chatId=[$chatId], memberName=[$memberName]")
+        jdbcTemplate.update(
+            """
+                update member m
+                    set enabled = true
+                where
+                    m.member_name = :member_name
+                    and m.group_id in (select cg.group_id from chat_group cg where cg.chat_id = :chat_id)
+            """.trimIndent(),
+            mapOf(
+                "chat_id" to chatId.value,
+                "member_name" to memberName.value
+            )
+        )
+    }
+
     fun isAnarchyEnabled(chatId: ChatId): Boolean {
         logger.info("Getting actual anarchy status: chatId=[${chatId}]")
         val result: List<Boolean> = jdbcTemplate.query(
@@ -295,4 +365,6 @@ class BotRepository(private val jdbcTemplate: NamedParameterJdbcTemplate) {
         check(this == expected) { "Wrong update count: actual=[$this], expected=[$expected]" }
 
     private fun ResultSet.getLongOrNull(column: String): Long? = getLong(column).takeUnless { wasNull() }
+
+    private fun ResultSet.getBooleanOrNull(column: String): Boolean? = getBoolean(column).takeUnless { wasNull() }
 }

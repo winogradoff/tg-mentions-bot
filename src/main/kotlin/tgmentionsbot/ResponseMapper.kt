@@ -33,11 +33,18 @@ class ResponseMapper {
                 members.isEmpty() -> {
                     text("В группе "); bold { escape(groupName.value) }; text(" нет ни одного пользователя!")
                 }
+
                 else -> {
                     text("Участники группы "); bold { escape(groupName.value) }; text(":")
                     newline()
                     for (member in members) {
-                        pre { text("- "); escape(member.memberName.value) }
+                        pre {
+                            text("- ");
+                            escape(member.memberName.value);
+                            if (!member.enabled) {
+                                text(" \uD83D\uDD07") // emoji "muted speaker"
+                            }
+                        }
                         newline()
                     }
                 }
@@ -46,16 +53,18 @@ class ResponseMapper {
 
     fun toCallResponse(groupName: GroupName, members: List<Member>): String =
         createHTML {
+            val enabledMembers = members.filter { it.enabled }
             when {
-                members.isEmpty() -> {
+                enabledMembers.isEmpty() -> {
                     text("В группе "); bold { escape(groupName.value) }; text(" нет ни одного пользователя!")
                 }
+
                 else -> {
                     text("Призываем участников группы "); bold { escape(groupName.value) }; text(":")
                     newline()
-                    for ((index, member) in members.withIndex()) {
+                    for ((index, member) in enabledMembers.withIndex()) {
                         userMention(member)
-                        if (index < members.lastIndex) {
+                        if (index < enabledMembers.lastIndex) {
                             text(" ")
                         }
                     }
@@ -65,16 +74,18 @@ class ResponseMapper {
 
     fun toHereResponse(members: List<Member>): String =
         createHTML {
+            val enabledMembers = members.filter { it.enabled }
             when {
-                members.isEmpty() -> {
+                enabledMembers.isEmpty() -> {
                     text("В чате нет ни одного пользователя!")
                 }
+
                 else -> {
                     text("Призываем участников всех групп:")
                     newline()
-                    for ((index, member) in members.withIndex()) {
+                    for ((index, member) in enabledMembers.withIndex()) {
                         userMention(member)
-                        if (index < members.lastIndex) {
+                        if (index < enabledMembers.lastIndex) {
                             text(" ")
                         }
                     }
@@ -105,6 +116,24 @@ class ResponseMapper {
     fun toPurgeMembersResponse(members: Set<Member>): String =
         createHTML {
             text("Пользователи удалённые из всех групп чата:"); newline()
+            for (member in members) {
+                pre { text("- "); escape(member.memberName.value) }
+                newline()
+            }
+        }
+
+    fun toMuteMembersResponse(members: Set<Member>): String =
+        createHTML {
+            text("Уведомления выключены для пользователей:"); newline()
+            for (member in members) {
+                pre { text("- "); escape(member.memberName.value) }
+                newline()
+            }
+        }
+
+    fun toUnmuteMembersResponse(members: Set<Member>): String =
+        createHTML {
+            text("Уведомления включены для пользователей:"); newline()
             for (member in members) {
                 pre { text("- "); escape(member.memberName.value) }
                 newline()
@@ -273,6 +302,22 @@ class ResponseMapper {
                 }
 
                 Command.PURGE_MEMBERS -> {
+                    commandDescription()
+                    newline(2)
+                    commandExample("/${command.firstKey()} member1 member2")
+                    newline(2)
+                    constrains("member" to BotConstraints.MESSAGE_FOR_MEMBER)
+                }
+
+                Command.MUTE_MEMBERS -> {
+                    commandDescription()
+                    newline(2)
+                    commandExample("/${command.firstKey()} member1 member2")
+                    newline(2)
+                    constrains("member" to BotConstraints.MESSAGE_FOR_MEMBER)
+                }
+
+                Command.UNMUTE_MEMBERS -> {
                     commandDescription()
                     newline(2)
                     commandExample("/${command.firstKey()} member1 member2")

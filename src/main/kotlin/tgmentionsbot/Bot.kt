@@ -171,7 +171,7 @@ class Bot(
                 grant = Grant.WRITE_ACCESS,
                 handler = {
                     val (groupName: GroupName, members: Set<Member>) = requestMapper.parseGroupWithMembers(message)
-                    botService.addMembers(chatId = chat.chatId, groupName = groupName, newMembers = members)
+                    botService.addMembers(chat = chat, groupName = groupName, newMembers = members)
                     sendReply(message, responseMapper.toAddMembersResponse(groupName, members))
                 }
             )

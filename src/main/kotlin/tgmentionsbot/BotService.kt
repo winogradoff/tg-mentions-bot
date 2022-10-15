@@ -47,12 +47,13 @@ class BotService(
             .sortedBy { it.memberName.value }
     }
 
-    fun addMembers(chatId: ChatId, groupName: GroupName, newMembers: Set<Member>) {
-        logger.info("Adding members: chatId=[${chatId}], groupName=[$groupName], newMembers=[$newMembers]")
+    fun addMembers(chat: Chat, groupName: GroupName, newMembers: Set<Member>) {
+        logger.info("Adding members: chatId=[${chat.chatId}], groupName=[$groupName], newMembers=[$newMembers]")
         checkMembersNotEmpty(newMembers)
         transactionTemplate.executeWithoutResult {
-            botRepository.getChatByIdForUpdate(chatId)
-            val group = getGroupByNameOrThrow(chatId, groupName)
+            botRepository.addChat(chat)
+            botRepository.getChatByIdForUpdate(chat.chatId)
+            val group = getGroupByNameOrThrow(chat.chatId, groupName)
             val existingMembers = botRepository.getMembersByGroupId(group.groupId)
             if (existingMembers.size + newMembers.size > BotConstraints.MAX_MEMBERS_PER_GROUP) {
                 throw BotReplyException.ValidationError(

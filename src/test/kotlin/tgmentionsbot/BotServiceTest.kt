@@ -260,6 +260,13 @@ internal class BotServiceTest {
             val newMember1 = Member(memberName = MemberName("xxx"))
             val newMember2 = Member(memberName = MemberName("yyy"))
 
+            val chat = Chat(
+                chatId = chatId,
+                chatTitle = "chat-title",
+                chatUserName = "chat-name",
+                isAnarchyEnabled = null
+            )
+
             val existingMembers: List<Member> = listOf(
                 Member(memberName = MemberName("qqq1")),
                 Member(memberName = MemberName("qqq2")),
@@ -277,9 +284,10 @@ internal class BotServiceTest {
             every { botRepository.getMembersByGroupId(groupId) } returns existingMembers
 
             // when
-            botService.addMembers(chatId = chatId, groupName = groupName, newMembers = setOf(newMember1, newMember2))
+            botService.addMembers(chat = chat, groupName = groupName, newMembers = setOf(newMember1, newMember2))
 
             // then
+            verify { botRepository.addChat(chat) }
             verify { botRepository.addMember(groupId = groupId, member = newMember1) }
             verify { botRepository.addMember(groupId = groupId, member = newMember2) }
         }

@@ -17,7 +17,7 @@ object BotConstraints {
     private const val MEMBER = """(?:[@\w]|[-])+"""
 
     val REGEX_CMD_GROUP = """$BEGIN/($CMD)\s+(?<group>$GROUP)$END""".toRegex()
-    val REGEX_CMD_GROUP_WITH_TAIL = """^/($CMD)\s+(?<group>$GROUP)(\s+(.|\n)*)*""".toRegex()
+    val REGEX_CMD_GROUP_WITH_TAIL = """^/($CMD)\s+(?<group>$GROUP)(\s+(.|\n)+)*""".toRegex()
     val REGEX_CMD_MEMBERS = """$BEGIN/($CMD)(\s+(?<member>$MEMBER))+$END""".toRegex()
     val REGEX_CMD_GROUP_MEMBERS = """$BEGIN/($CMD)\s+(?<group>$GROUP)(\s+(?<member>$MEMBER))+$END""".toRegex()
     val REGEX_CMD_GROUP_ALIAS = """$BEGIN/($CMD)\s+(?<group>$GROUP)\s+(?<alias>$GROUP)$END""".toRegex()

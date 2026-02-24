@@ -126,6 +126,21 @@ internal class BotServiceTest {
             // then
             assertThat(members).containsExactlyInAnyOrder(member1, member2)
         }
+
+        @Test
+        fun `positive - group=ALL in uppercase`() {
+            // given
+            val member1 = Member(memberName = MemberName("aaa"), userId = UserId(111))
+            val member2 = Member(memberName = MemberName("bbb"), userId = UserId(222))
+
+            every { botRepository.getMembersByChatId(chatId = chatId) } returns listOf(member1, member2, member2.copy())
+
+            // when
+            val members = botService.getGroupMembers(chatId = chatId, groupName = GroupName("ALL"))
+
+            // then
+            assertThat(members).containsExactlyInAnyOrder(member1, member2)
+        }
     }
 
     @Nested
@@ -174,6 +189,28 @@ internal class BotServiceTest {
             verify { botRepository.addChat(chat) }
             verify { botRepository.addGroup(chatId) }
             verify { botRepository.addAlias(chatId, groupId, groupName) }
+        }
+
+        @Test
+        fun `negative - duplicate name in another case`() {
+            // given
+            val chat = Chat(chatId = chatId)
+            val groupName = GroupName("Dev")
+            val existingAlias = GroupAlias(
+                chatId = chatId,
+                groupId = GroupId(321),
+                aliasId = AliasId(654),
+                aliasName = GroupName("dev")
+            )
+
+            every { botRepository.addChat(any()) } just runs
+            every { botRepository.getChatByIdForUpdate(chatId) } just runs
+            every { botRepository.getAliasesByChatId(chatId) } returns listOf(existingAlias)
+
+            // when
+            assertThat { botService.addGroup(chat = chat, groupName = groupName) }
+                .isFailure()
+                .isInstanceOf(BotReplyException.IntegrityViolationError::class)
         }
     }
 
@@ -391,11 +428,61 @@ internal class BotServiceTest {
         }
 
         @Test
+        fun `positive - remove alias in another case`() {
+            // given
+            every { botRepository.getAliasByName(chatId, GroupName("ALIAS-1")) } returns groupAlias1
+            every { botRepository.getAliasesByGroupId(groupId) } returns listOf(groupAlias1, groupAlias2)
+
+            // when
+            botService.removeAlias(chatId, aliasName = GroupName("ALIAS-1"))
+
+            // then
+            verifyOrder {
+                botRepository.getChatByIdForUpdate(chatId)
+                botRepository.removeAliasById(groupAlias1.aliasId)
+            }
+        }
+
+        @Test
         fun `negative - cannot delete last name`() {
             every { botRepository.getAliasByName(chatId, groupAlias1.aliasName) } returns groupAlias1
             every { botRepository.getAliasesByGroupId(groupId) } returns listOf(groupAlias1)
 
             assertThat { botService.removeAlias(chatId, aliasName = groupAlias1.aliasName) }
+                .isFailure()
+                .isInstanceOf(BotReplyException.ValidationError::class)
+        }
+    }
+
+    @Nested
+    inner class `addAlias - tests` {
+
+        @Test
+        fun `negative - duplicate alias in another case`() {
+            // given
+            val groupId = GroupId(123)
+            val groupName = GroupName("group")
+            val aliasName = GroupName("DEV")
+            val groupAlias = GroupAlias(
+                chatId = chatId,
+                aliasName = groupName,
+                groupId = groupId,
+                aliasId = AliasId(1)
+            )
+
+            every { botRepository.getAliasByName(chatId, groupName) } returns groupAlias
+            every { botRepository.getAliasesByChatId(chatId) } returns listOf(
+                groupAlias,
+                GroupAlias(
+                    chatId = chatId,
+                    aliasName = GroupName("dev"),
+                    groupId = GroupId(999),
+                    aliasId = AliasId(2)
+                )
+            )
+
+            // when
+            assertThat { botService.addAlias(chatId, groupName, aliasName) }
                 .isFailure()
                 .isInstanceOf(BotReplyException.ValidationError::class)
         }

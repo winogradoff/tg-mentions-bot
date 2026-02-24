@@ -91,7 +91,7 @@ class BotRepository(private val jdbcTemplate: NamedParameterJdbcTemplate) {
             """
                 select chat_id, group_id, alias_id, alias_name
                 from chat_group_alias
-                where chat_id =:chat_id and alias_name = :alias_name
+                where chat_id =:chat_id and lower(alias_name) = lower(:alias_name)
             """.trimIndent(),
             mapOf("chat_id" to chatId.value, "alias_name" to aliasName.value)
         ) { rs, _ ->

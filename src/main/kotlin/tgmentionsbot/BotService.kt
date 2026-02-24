@@ -29,7 +29,7 @@ class BotService(
 
     fun getGroupMembers(chatId: ChatId, groupName: GroupName): List<Member> {
         logger.info("Getting group members: chatId=[${chatId}], groupName=[${groupName}]")
-        return when (groupName.value) {
+        return when (groupName.normalized()) {
             in ALL_MEMBERS_GROUPS -> botRepository.getMembersByChatId(chatId)
                 .distinctBy { listOf(it.memberName, it.userId) }
 
@@ -164,7 +164,7 @@ class BotService(
             botRepository.getChatByIdForUpdate(chatId)
             val group = getGroupByNameOrThrow(chatId, groupName)
             val chatAliases = botRepository.getAliasesByChatId(chatId)
-            if (aliasName in chatAliases.map { it.aliasName }) {
+            if (chatAliases.any { it.aliasName.normalized() == aliasName.normalized() }) {
                 throw BotReplyException.ValidationError(
                     message = "This group alias already exists",
                     userMessage = "Такой синоним уже используется!"
@@ -189,9 +189,13 @@ class BotService(
         transactionTemplate.executeWithoutResult {
             botRepository.getChatByIdForUpdate(chatId)
             val group = getGroupByNameOrThrow(chatId, aliasName)
-            val aliasesByName = botRepository.getAliasesByGroupId(group.groupId).associateBy { it.aliasName }
-            val aliasForDelete = aliasesByName.getValue(aliasName)
-            if (aliasesByName.size == 1) {
+            val groupAliases = botRepository.getAliasesByGroupId(group.groupId)
+            val aliasForDelete = groupAliases.firstOrNull { it.aliasName.normalized() == aliasName.normalized() }
+                ?: throw BotReplyException.NotFoundError(
+                    message = "Alias not found in group aliases: chatId=[$chatId], aliasName=[$aliasName], groupId=[${group.groupId}]",
+                    userMessage = "Такой синоним не найден!"
+                )
+            if (groupAliases.size == 1) {
                 throw BotReplyException.ValidationError(
                     message = "Can't delete single group alias",
                     userMessage = "Нельзя удалить единственное название группы!"
@@ -236,7 +240,7 @@ class BotService(
     }
 
     private fun verifyGroupDoesNotExistsYet(groupAliases: List<GroupAlias>, groupName: GroupName) {
-        if (groupAliases.any { it.aliasName == groupName }) {
+        if (groupAliases.any { it.aliasName.normalized() == groupName.normalized() }) {
             throw BotReplyException.IntegrityViolationError(
                 message = "Group [$groupName] already exists!",
                 userMessage = "Такая группа уже существует!"

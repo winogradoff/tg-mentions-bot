@@ -26,6 +26,8 @@ value class GroupName(val value: String) {
         }
     }
 
+    fun normalized(): String = value.lowercase()
+
     override fun toString(): String = value
 }
 
